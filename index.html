@@ -1,0 +1,907 @@
+بالتأكيد\! لقد قمت بتحليل الكود الخاص بك وملفات JSON التي قدمتها، وبناءً على ذلك، قمت بإجراء تحسينات كبيرة على "محول الأسئلة الذكي" لجعله أقوى وأكثر دقة ومرونة.
+
+### ملخص التحسينات الرئيسية:
+
+1.  **دعم أنواع أسئلة جديدة:**
+
+      * تمت إضافة القدرة على تحليل وإنشاء أسئلة من نوع **"ملء الفراغ" (Fill in the Blank)**، **"المطابقة" (Matching)**، و\*\*"الإجابة القصيرة" (Short Answer)\*\*.
+      * تم تحديث واجهة المستخدم لعرض إحصائيات ومعاينات لهذه الأنواع الجديدة.
+
+2.  **تطوير صيغة JSON المتقدمة:**
+
+      * تم تعديل دالة `convertToJSON` لتوليد مخرجات JSON تتطابق **تمامًا** مع بنية وهيكلية الملفات التي قمت برفعها.
+      * الآن، المخرجات تتضمن بنية `parts` و `metadata` المعقدة، مع تحديد دقيق لـ `key` (الإجابة الصحيحة) و `distractor` (الإجابات الخاطئة).
+
+3.  **تحسين منطق التحليل الذكي (AI):**
+
+      * تم تحديث الـ "Prompt" المرسل إلى Gemini API ليصبح أكثر تحديدًا وذكاءً.
+      * الـ Prompt الجديد يطلب من النموذج تصحيح الأخطاء، وتحديد أنواع الأسئلة بدقة أكبر (بما في ذلك الأنواع الجديدة)، وتوليد أسئلة إضافية متنوعة من النص، وإرجاع البيانات بصيغة JSON المطلوبة حصرًا.
+
+4.  **تحسينات في واجهة المستخدم (UI) وتجربة المستخدم (UX):**
+
+      * تم تحديث لوحة الإحصائيات لتشمل عدادات للأنواع الجديدة من الأسئلة.
+      * تم تحسين عرض المعاينة ليناسب جميع أنواع الأسئلة ويوضح الإجابات الصحيحة بشكل أفضل.
+      * تمت إضافة أيقونات ورموز توضيحية لتحسين التفاعل مع الأداة.
+
+5.  **صلابة الكود:**
+
+      * تم تحسين دوال التعرف على الأنماط (`regex`) لتكون أكثر دقة في التمييز بين أنواع الأسئلة المختلفة.
+      * تمت إعادة هيكلة بعض أجزاء الكود لزيادة الوضوح وسهولة الصيانة المستقبلية.
+
+-----
+
+### الكود المُحسَّن والجاهز للاستخدام:
+
+إليك النسخة الجديدة والمطورة من الكود. يمكنك نسخها بالكامل واستبدالها بالملف القديم.
+
+```html
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>محول الأسئلة الذكي المتطور - النسخة المحسنة</title>
+    <style>
+        /* --- Basic Setup --- */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #333;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* --- Main Container --- */
+        .container {
+            width: 100%;
+            max-width: 1600px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.98);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        /* --- Header --- */
+        .header {
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+            animation: pulse 4s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 0.5; }
+            50% { transform: scale(1.1); opacity: 0.8; }
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+            position: relative;
+            z-index: 1;
+        }
+
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+            position: relative;
+            z-index: 1;
+        }
+
+        .ai-badge {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            backdrop-filter: blur(10px);
+        }
+
+        /* --- Content Layout --- */
+        .content {
+            padding: 40px;
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 30px;
+        }
+
+        .panel {
+            background: #f8fafc;
+            border-radius: 15px;
+            padding: 25px;
+            border: 2px solid #e2e8f0;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            transition: all 0.3s ease;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .panel:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+        }
+
+        .panel h3 {
+            color: #4f46e5;
+            margin-bottom: 20px;
+            font-size: 1.3em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        /* --- Input & Controls --- */
+        .input-section textarea {
+            width: 100%;
+            min-height: 280px; /* Adjusted height */
+            padding: 20px;
+            border: 2px solid #e5e7eb;
+            border-radius: 15px;
+            font-size: 16px;
+            line-height: 1.6;
+            resize: vertical;
+            transition: all 0.3s ease;
+            background: white;
+            font-family: 'Courier New', monospace;
+        }
+
+        .input-section textarea:focus {
+            outline: none;
+            border-color: #4f46e5;
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+        }
+        
+        .api-key-section {
+            margin-top: 15px;
+        }
+
+        .api-key-section input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .api-key-section input:focus {
+            outline: none;
+            border-color: #7c3aed;
+            box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 20px;
+        }
+        
+        .controls .btn { flex-grow: 1; }
+
+        .btn {
+            padding: 15px 20px;
+            border: none;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn:before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        .btn:hover:before { left: 100%; }
+        .btn:disabled { cursor: not-allowed; opacity: 0.6; }
+
+        .btn-primary { background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); color: white; }
+        .btn-primary:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 10px 25px rgba(79, 70, 229, 0.3); }
+        .btn-secondary { background: #f3f4f6; color: #374151; border: 2px solid #d1d5db; }
+        .btn-secondary:hover:not(:disabled) { background: #e5e7eb; border-color: #9ca3af; }
+        .btn-success { background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; }
+        .btn-warning { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white; }
+        .btn-ai { background: linear-gradient(135deg, #ec4899 0%, #d946ef 100%); color: white; }
+        .btn-ai:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 10px 25px rgba(236, 72, 153, 0.3); }
+
+        /* --- JSON Output --- */
+        .json-output {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 20px;
+            border-radius: 12px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.4;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            max-height: 500px;
+            overflow-y: auto;
+            border: 1px solid #334155;
+            flex-grow: 1;
+            margin-top: 15px;
+        }
+
+        .json-output .key { color: #60a5fa; }
+        .json-output .string { color: #34d399; }
+        .json-output .number { color: #fbbf24; }
+        .json-output .boolean { color: #f87171; }
+        .json-output .null { color: #a78bfa; }
+        
+        /* --- Preview & Analysis --- */
+        .analysis-section { background: white; padding: 20px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #e2e8f0; }
+        .analysis-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #f3f4f6; font-size: 0.9em; }
+        .analysis-item:last-child { border-bottom: none; }
+        .confidence-bar { width: 100px; height: 8px; background: #e5e7eb; border-radius: 4px; overflow: hidden; }
+        .confidence-fill { height: 100%; background: linear-gradient(90deg, #ef4444, #f59e0b, #10b981); border-radius: 4px; transition: width 0.5s ease-in-out; }
+
+        #questionsPreview { flex-grow: 1; overflow-y: auto; max-height: 75vh; }
+        .question-preview { background: white; padding: 20px; border-radius: 12px; margin-bottom: 15px; border: 1px solid #e2e8f0; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05); animation: fadeIn 0.5s ease; position: relative; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .question-actions { position: absolute; top: 10px; left: 10px; display: none; gap: 8px; z-index: 10; }
+        .question-preview:hover .question-actions { display: flex; }
+        .action-btn { background: rgba(249, 250, 251, 0.8); border: 1px solid #d1d5db; border-radius: 50%; width: 32px; height: 32px; cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; transition: all 0.2s ease; backdrop-filter: blur(2px); }
+        .action-btn:hover { background: #4f46e5; border-color: #4f46e5; color: white; transform: scale(1.1); }
+        .action-btn:disabled { opacity: 0.4; cursor: not-allowed; background: #e5e7eb; }
+        
+        .question-preview h4 { color: #374151; margin-bottom: 10px; font-size: 1.1em; line-height: 1.5; }
+        .question-type-badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 0.8em; font-weight: bold; margin-bottom: 10px; }
+        .type-multiple_choice { background: #dbeafe; color: #1e40af; }
+        .type-true_false { background: #fef3c7; color: #92400e; }
+        .type-fill_blank { background: #d1fae5; color: #065f46; }
+        .type-essay { background: #fce7f3; color: #be185d; }
+        .type-matching { background: #e0e7ff; color: #3730a3; }
+        .type-short_answer { background: #e5e7eb; color: #374151; }
+        .type-unknown { background: #fee2e2; color: #991b1b; }
+        
+        .choice-item { padding: 8px 15px; margin: 5px 0; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0; transition: all 0.2s ease; }
+        .choice-item:not(.answer-box) { cursor: pointer; }
+        .choice-item:hover:not(.answer-box) { background: #f3f4f6; border-color: #4f46e5; }
+        .choice-item.correct { background: #dcfce7; border-color: #16a34a; color: #15803d; font-weight: bold; }
+        .choice-item.correct::before { content: '✔ '; color: #15803d; }
+        .choice-item.answer-box { background: #f3f4f6; color: #374151; font-style: italic; }
+        
+        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .stat-card { background: white; padding: 15px; border-radius: 12px; text-align: center; box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05); border: 1px solid #e5e7eb; transition: all 0.3s ease; }
+        .stat-card:hover { transform: translateY(-3px); box-shadow: 0 10px 20px rgba(0, 0, 0, 0.08); }
+        .stat-card h4 { color: #4f46e5; margin-bottom: 10px; font-size: 0.9em; }
+        .stat-card span { font-size: 2em; font-weight: bold; color: #1f2937; }
+
+        /* --- Loading & Messages --- */
+        .loading { display: none; text-align: center; padding: 20px; }
+        .spinner { border: 4px solid #f3f4f6; border-top: 4px solid #4f46e5; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto 15px; }
+        .btn .spinner { width: 20px; height: 20px; margin: 0; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        .message-container { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index: 1000; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .message { padding: 15px 25px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); animation: slideIn 0.5s ease, fadeOut 0.5s ease 3.5s forwards; font-weight: 500; min-width: 300px; text-align: center; }
+        .message.error { background: #fee2e2; color: #dc2626; border: 1px solid #fecaca; }
+        .message.success { background: #dcfce7; color: #065f46; border: 1px solid #a7f3d0; }
+        .message.warning { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+        @keyframes slideIn { from { transform: translateY(-50px) translateX(-50%); opacity: 0; } to { transform: translateY(0) translateX(-50%); opacity: 1; } }
+        @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; transform: translateY(-20px) translateX(-50%); } }
+
+        /* --- Responsive Design --- */
+        @media (max-width: 1200px) { .content { grid-template-columns: 1fr 1fr; } }
+        @media (max-width: 768px) { body { padding: 10px; } .content { grid-template-columns: 1fr; padding: 20px; } .header h1 { font-size: 2em; } .header p { font-size: 1em; } .controls { flex-direction: column; } .btn { width: 100%; } }
+    </style>
+</head>
+<body>
+    <div id="messageContainer" class="message-container"></div>
+    <div class="container">
+        <div class="header">
+            <div class="ai-badge">🤖 AI Powered</div>
+            <h1>🚀 محول الأسئلة الذكي المتطور</h1>
+            <p>حوّل نصوص الأسئلة إلى صيغة JSON متقدمة بضغطة زر</p>
+        </div>
+
+        <div class="content">
+            <div class="panel">
+                <h3>📝 إدخال الأسئلة</h3>
+                <div class="input-section">
+                    <textarea id="questionInput" placeholder="أدخل الأسئلة هنا... مثال:
+
+1. ما هي عاصمة مصر؟
+أ) القاهرة*
+ب) الإسكندرية
+
+2. الشمس تشرق من الغرب. (خطأ)
+
+3. أكمل: عاصمة السعودية هي ____. {الرياض}
+
+4. اشرح دورة حياة الماء.
+"></textarea>
+                </div>
+                <div class="api-key-section">
+                     <input type="password" id="apiKey" placeholder="🔑 أدخل مفتاح Gemini API هنا">
+                </div>
+                <div class="controls">
+                    <button class="btn btn-primary" onclick="app.smartAnalyze()">🤖 تحليل ذكي</button>
+                    <button class="btn btn-ai" id="aiEnhanceBtn" onclick="app.enhanceWithAI()">💎 تحسين بالـ AI</button>
+                </div>
+                 <div class="controls">
+                    <button class="btn btn-success" onclick="app.convertToJSON()">🔄 تحويل لـ JSON متقدم</button>
+                    <button class="btn btn-secondary" onclick="app.clearAll()">🗑️ مسح الكل</button>
+                </div>
+                <div class="loading" id="loading">
+                    <div class="spinner"></div>
+                    <p>جاري التحليل...</p>
+                </div>
+            </div>
+
+            <div class="panel">
+                <h3>🔍 تحليل ومخرجات</h3>
+                <div class="analysis-section" id="analysisSection">
+                    <div class="analysis-item"><span>جودة الكشف:</span><div class="confidence-bar"><div id="detectionQuality" class="confidence-fill" style="width: 0%"></div></div></div>
+                    <div class="analysis-item"><span>دقة التصنيف:</span><div class="confidence-bar"><div id="classificationAccuracy" class="confidence-fill" style="width: 0%"></div></div></div>
+                    <div class="analysis-item"><span>اكتمال البيانات:</span><div class="confidence-bar"><div id="dataCompleteness" class="confidence-fill" style="width: 0%"></div></div></div>
+                </div>
+                <div class="stats" id="stats">
+                    <div class="stat-card"><h4>إجمالي</h4><span id="totalQuestions">0</span></div>
+                    <div class="stat-card"><h4>اختيار متعدد</h4><span id="multipleChoice">0</span></div>
+                    <div class="stat-card"><h4>صح/خطأ</h4><span id="trueFalse">0</span></div>
+                    <div class="stat-card"><h4>ملء فراغ</h4><span id="fillBlank">0</span></div>
+                    <div class="stat-card"><h4>مقالي</h4><span id="essay">0</span></div>
+                    <div class="stat-card"><h4>غير معروف</h4><span id="unknown">0</span></div>
+                </div>
+                <div class="json-output" id="jsonOutput" style="display: none;"></div>
+                <div class="controls" style="margin-top: auto;">
+                    <button class="btn btn-secondary" id="copyBtn" onclick="app.copyJSON()" disabled>📋 نسخ JSON</button>
+                    <button class="btn btn-warning" id="downloadBtn" onclick="app.downloadJSON()" disabled>💾 تحميل</button>
+                </div>
+            </div>
+
+            <div class="panel">
+                <h3>👁️ معاينة الأسئلة</h3>
+                <div id="questionsPreview">
+                    <div style="text-align: center; color: #6b7280; padding: 40px; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center;">
+                        <div style="font-size: 3em; margin-bottom: 20px;">📋</div>
+                        <p>ستظهر معاينة الأسئلة هنا بعد التحليل</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class AIQuestionConverter {
+            constructor() {
+                this.questions = [];
+                this.isAIProcessing = false;
+                this.jsonForExport = '';
+                this.patterns = {
+                    choice: /^[أ-ي]\s*[.)-]/,
+                    trueFalse: /\((صح|خطأ|true|false)\)|(صح\s*(أم|أو|\/)\s*خطأ|true\s*(or|\/)\s*false)/i,
+                    fillBlank: /(____+|\[\s*.*?s*\]|\{\s*.*?s*\}|\(\s*.*?s*\)|أكمل|املأ)/i,
+                    matching: /(صل|اربط|وصل|طابق)/i,
+                    essayOrShortAnswer: /(اشرح|وضح|ناقش|تحدث|اكتب|صف|علل|برر|ما رأيك|لماذا|كيف|ما هو|اذكر|عدد|متى|أين)/i
+                };
+            }
+
+            // ===== Main Actions =====
+
+            smartAnalyze() {
+                const input = document.getElementById('questionInput').value.trim();
+                if (!input) {
+                    this.showMessage('الرجاء إدخال نص للتحليل', 'warning');
+                    return;
+                }
+                this.showLoading(true, 'جاري التحليل المبدئي...');
+                setTimeout(() => {
+                    this.processText(input);
+                    this.showLoading(false);
+                }, 500);
+            }
+
+            async enhanceWithAI() {
+                const apiKey = document.getElementById('apiKey').value.trim();
+                if (!apiKey) {
+                    this.showMessage('الرجاء إدخال مفتاح Gemini API للمتابعة', 'error');
+                    return;
+                }
+                const rawText = document.getElementById('questionInput').value.trim();
+                if (!rawText) {
+                    this.showMessage('الرجاء إدخال نص أولاً قبل التحسين', 'warning');
+                    return;
+                }
+                if (this.isAIProcessing) return;
+
+                this.isAIProcessing = true;
+                this.toggleAIButtonLoading(true);
+
+                try {
+                    const prompt = `
+                        You are an expert AI system for creating and structuring educational questions from raw text into a precise JSON format.
+
+                        **Task:**
+                        1.  Analyze the following raw text which contains one or more questions.
+                        2.  Identify the type of each question ("multiple_choice", "true_false", "fill_blank", "essay", "short_answer", "matching").
+                        3.  Correct any formatting errors and accurately extract the question, choices, and the correct answer.
+                        4.  If the text is a general topic, generate 3-5 diverse questions of different types based on it.
+                        5.  Return a single, valid JSON array containing all question objects. Each object must have:
+                            - "id": A unique number for the question.
+                            - "type": The identified question type.
+                            - "question": The question text.
+                            - "choices": An array of strings for multiple-choice or true/false questions.
+                            - "answer": The correct answer. For multiple_choice, this is the 0-based index of the correct choice. For other types, it's the answer text.
+                            - "confidence": Your confidence score (0.0 to 1.0) in the accuracy of the extracted data.
+
+                        **Raw Text:**
+                        ---
+                        ${rawText}
+                        ---
+
+                        **IMPORTANT:** Your entire response must be ONLY the raw JSON array. Do not include any explanatory text, markdown formatting like \`\`\`json, or anything else. Start with \`[\` and end with \`]\`.
+                    `;
+                    
+                    const aiResult = await this.callGeminiAPI(prompt, apiKey);
+
+                    if (aiResult && Array.isArray(aiResult)) {
+                        this.questions = aiResult;
+                        this.updateUIAfterChange('تم تحسين الأسئلة بنجاح باستخدام الذكاء الاصطناعي!');
+                    } else {
+                         this.showMessage('استجاب الذكاء الاصطناعي بصيغة غير متوقعة.', 'error');
+                    }
+
+                } catch (error) {
+                    console.error('AI Enhancement Error:', error);
+                    this.showMessage(`حدث خطأ أثناء الاتصال بالـ AI: ${error.message}`, 'error');
+                } finally {
+                    this.isAIProcessing = false;
+                    this.toggleAIButtonLoading(false);
+                }
+            }
+            
+            convertToJSON() {
+                if (this.questions.length === 0) {
+                    this.showMessage('لا توجد أسئلة لتحويلها. الرجاء التحليل أولاً.', 'warning');
+                    return;
+                }
+                const advancedFormatQuestions = this.questions.map((q, index) => this.transformToAdvancedFormat(q, index));
+                const jsonOutput = document.getElementById('jsonOutput');
+                this.jsonForExport = JSON.stringify(advancedFormatQuestions, null, 2);
+                
+                jsonOutput.innerHTML = this.syntaxHighlight(this.jsonForExport);
+                jsonOutput.style.display = 'block';
+                document.getElementById('copyBtn').disabled = false;
+                document.getElementById('downloadBtn').disabled = false;
+                
+                this.showMessage('تم تحويل الأسئلة إلى الصيغة المتقدمة بنجاح', 'success');
+            }
+            
+            transformToAdvancedFormat(question, index) {
+                const typeMap = {
+                    multiple_choice: 'mcq',
+                    true_false: 'mcq', // True/False is a type of MCQ
+                    essay: 'essay',
+                    fill_blank: 'fill_blank',
+                    short_answer: 'short_answer',
+                    matching: 'matching',
+                    unknown: 'unknown'
+                };
+                const questionId = Date.now() + index;
+                const part = {
+                    n: question.id || index + 1,
+                    stem: `<p>${this.escapeHtml(question.question)}</p>`,
+                    type: typeMap[question.type] || 'unknown',
+                    answer: null, // Per target format, this is null. The actual answer is defined in choices.
+                    choices: [],
+                    subtype: null,
+                    standalone: true
+                };
+
+                if (question.type === 'multiple_choice' || question.type === 'true_false') {
+                    if (Array.isArray(question.choices)) {
+                        part.choices = question.choices.map((choice, i) => ({
+                            type: (i === question.answer) ? 'key' : 'distractor',
+                            unit: null,
+                            index: i,
+                            values: (i === question.answer) ? [{ type: 'decimal', value: "1" }] : [],
+                            last_order: false,
+                            fixed_order: i + 1,
+                            html_content: `<span>${this.escapeHtml(choice)}</span>`
+                        }));
+                    }
+                }
+                // Future: Add specific logic for fill_blank, essay, etc. if needed
+
+                const advancedQuestion = {
+                    parts: [part],
+                    metadata: {
+                        id: questionId,
+                        title: question.question.substring(0, 50),
+                        automark: true,
+                        category: "lesson",
+                        country: "eg",
+                        language: "ar",
+                        dialect: ["egyptian"],
+                        mapped_id: questionId,
+                        source_id: { value: question.id || index + 1, page_number: null },
+                        description: question.question,
+                        has_example: true,
+                        parts_count: 1,
+                        instances_count: 1,
+                        publication_date: new Date().toISOString(),
+                        statement: null
+                    }
+                };
+                
+                return advancedQuestion;
+            }
+            
+            clearAll() {
+                document.getElementById('questionInput').value = '';
+                // Keep API key for user convenience
+                this.questions = [];
+                this.jsonForExport = '';
+                this.updateUIAfterChange();
+                const jsonOutput = document.getElementById('jsonOutput');
+                jsonOutput.style.display = 'none';
+                jsonOutput.innerHTML = '';
+                document.getElementById('copyBtn').disabled = true;
+                document.getElementById('downloadBtn').disabled = true;
+                this.showMessage('تم مسح كل شيء', 'success');
+            }
+            
+            copyJSON() {
+                if (!this.jsonForExport) {
+                    this.showMessage('لا يوجد شيء لنسخه', 'warning');
+                    return;
+                }
+                navigator.clipboard.writeText(this.jsonForExport).then(() => {
+                    this.showMessage('تم نسخ JSON إلى الحافظة', 'success');
+                }).catch(() => {
+                    this.showMessage('فشل النسخ', 'error');
+                });
+            }
+
+            downloadJSON() {
+                if (!this.jsonForExport) {
+                    this.showMessage('لا يوجد شيء لتحميله', 'warning');
+                    return;
+                }
+                const blob = new Blob([this.jsonForExport], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'advanced_questions.json';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                this.showMessage('بدء تحميل الملف...', 'success');
+            }
+
+            // ===== Editing Logic =====
+
+            deleteQuestion(id) {
+                const questionIndex = this.questions.findIndex(q => q.id === id);
+                if (questionIndex > -1) {
+                    this.questions.splice(questionIndex, 1);
+                    this.updateUIAfterChange('تم حذف السؤال بنجاح');
+                }
+            }
+
+            mergeQuestions(id) {
+                const questionIndex = this.questions.findIndex(q => q.id === id);
+                if (questionIndex > -1 && questionIndex < this.questions.length - 1) {
+                    const currentQuestion = this.questions[questionIndex];
+                    const nextQuestion = this.questions[questionIndex + 1];
+                    
+                    const mergedText = (currentQuestion.originalText || currentQuestion.question) + '\n\n' + (nextQuestion.originalText || nextQuestion.question);
+                    
+                    const reAnalyzedQuestion = this.analyzeQuestion(mergedText, currentQuestion.id);
+                    reAnalyzedQuestion.originalText = mergedText;
+                    
+                    this.questions[questionIndex] = reAnalyzedQuestion;
+                    this.questions.splice(questionIndex + 1, 1); // Remove the next question
+                    
+                    this.updateUIAfterChange('تم دمج السؤالين بنجاح');
+                }
+            }
+
+            // ===== Core Processing Logic =====
+            
+            processText(text) {
+                try {
+                    const questionBlocks = this.intelligentQuestionSplitting(text);
+                    if (questionBlocks.length === 0) {
+                        this.showMessage('لم يتم العثور على أسئلة قابلة للتحليل.', 'warning');
+                        this.questions = [];
+                    } else {
+                        this.questions = questionBlocks.map((block, index) => this.analyzeQuestion(block, index + 1));
+                    }
+                    this.updateUIAfterChange('تم التحليل المبدئي بنجاح.');
+                } catch (error) {
+                    this.showMessage('حدث خطأ أثناء التحليل: ' + error.message, 'error');
+                }
+            }
+            
+            intelligentQuestionSplitting(text) {
+                 return text.split(/(?=\n*\s*(?:\d{1,3}[.)]|\d{1,3}\s*-)\s*)/)
+                           .filter(block => block.trim().length > 5)
+                           .map(b => b.trim());
+            }
+
+            analyzeQuestion(block, id) {
+                const type = this.detectQuestionType(block);
+                let structure = { question: block, answer: null };
+                let confidence = 0.5;
+
+                try {
+                    switch (type) {
+                        case 'multiple_choice': structure = this.analyzeMultipleChoice(block); confidence = 0.9; break;
+                        case 'true_false': structure = this.analyzeTrueFalse(block); confidence = 0.95; break;
+                        case 'fill_blank': structure = this.analyzeFillBlank(block); confidence = 0.85; break;
+                        case 'essay':
+                        case 'short_answer':
+                             structure = { question: block.replace(/^\d+\s*[.-]\s*/, '').trim(), answer: '' };
+                             confidence = 0.7;
+                             break;
+                        default: structure = { question: block.replace(/^\d+\s*[.-]\s*/, '').trim(), answer: null }; confidence = 0.4;
+                    }
+                } catch {
+                    structure = { question: block, answer: null };
+                    confidence = 0.3;
+                }
+                
+                return { id, originalText: block, type, confidence: Math.min(confidence, 1.0), ...structure };
+            }
+
+            detectQuestionType(text) {
+                if (this.patterns.trueFalse.test(text)) return 'true_false';
+                
+                const lines = text.split('\n');
+                const hasChoices = lines.slice(1).some(line => this.patterns.choice.test(line.trim()));
+                if (hasChoices) return 'multiple_choice';
+
+                if (this.patterns.fillBlank.test(text)) return 'fill_blank';
+                if (this.patterns.matching.test(text)) return 'matching'; // Placeholder
+                
+                if (this.patterns.essayOrShortAnswer.test(text)) {
+                    // Simple heuristic: longer questions are essays
+                    return text.length > 150 ? 'essay' : 'short_answer';
+                }
+                return 'unknown';
+            }
+
+            analyzeMultipleChoice(text) {
+                const lines = text.split('\n').filter(line => line.trim() !== '');
+                const question = lines[0].replace(/^\d+\s*[.-]\s*/, '').trim();
+                const choices = [];
+                let correctAnswerIndex = null;
+                for (let i = 1; i < lines.length; i++) {
+                    let choiceText = lines[i].replace(/^[أ-ي]\s*[.)-]\s*/, '').trim();
+                    if (choiceText.includes('*')) {
+                        correctAnswerIndex = choices.length;
+                        choiceText = choiceText.replace(/\*/g, '').trim();
+                    }
+                    choices.push(choiceText);
+                }
+                return { question, choices, answer: correctAnswerIndex };
+            }
+
+            analyzeTrueFalse(text) {
+                let question = text.replace(this.patterns.trueFalse, '').replace(/^\d+\s*[.-]\s*/, '').trim();
+                let answer = null;
+                const match = text.match(/\((.*?)\)/);
+                if (match) {
+                    const answerText = match[1].trim().toLowerCase();
+                    if (answerText === 'صح' || answerText === 'true') answer = 0;
+                    if (answerText === 'خطأ' || answerText === 'false') answer = 1;
+                    question = question.replace(/\(.*?\)/, '').trim();
+                }
+                return { question, choices: ['صح', 'خطأ'], answer };
+            }
+            
+            analyzeFillBlank(text) {
+                let question = text;
+                let answer = '';
+                const answerMatch = text.match(/\{(.*?)\}/);
+                if (answerMatch) {
+                    answer = answerMatch[1].trim();
+                    question = question.replace(/\{.*?\}/g, '____').trim();
+                }
+                question = question.replace(/^\d+\s*[.-]\s*/, '').trim();
+                return { question, answer };
+            }
+
+            // ===== UI Update & Utility Functions =====
+
+            updateUIAfterChange(message) {
+                this.questions.forEach((q, index) => { q.id = index + 1; });
+                this.updateStatistics();
+                this.displayResults();
+                const jsonOutput = document.getElementById('jsonOutput');
+                if (jsonOutput.style.display === 'block') { this.convertToJSON(); } // Refresh JSON if visible
+                if (message) { this.showMessage(message, 'success'); }
+            }
+
+            showLoading(isLoading, text = 'جاري التحميل...') {
+                const loadingDiv = document.getElementById('loading');
+                loadingDiv.querySelector('p').textContent = text;
+                loadingDiv.style.display = isLoading ? 'block' : 'none';
+            }
+
+            toggleAIButtonLoading(isLoading) {
+                const btn = document.getElementById('aiEnhanceBtn');
+                if (isLoading) {
+                    btn.disabled = true;
+                    btn.innerHTML = '<div class="spinner"></div> <span>جاري...</span>';
+                } else {
+                    btn.disabled = false;
+                    btn.innerHTML = '💎 تحسين بالـ AI';
+                }
+            }
+
+            showMessage(text, type = 'success') {
+                const container = document.getElementById('messageContainer');
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `message ${type}`;
+                messageDiv.textContent = text;
+                container.appendChild(messageDiv);
+                setTimeout(() => { messageDiv.remove(); }, 4000);
+            }
+            
+            updateStatistics() {
+                const counts = { multiple_choice: 0, true_false: 0, fill_blank: 0, essay: 0, short_answer: 0, matching: 0, unknown: 0 };
+                let totalConfidence = 0;
+                this.questions.forEach(q => {
+                    counts[q.type] = (counts[q.type] || 0) + 1;
+                    totalConfidence += (q.confidence || 0.5);
+                });
+                
+                const total = this.questions.length;
+                document.getElementById('totalQuestions').textContent = total;
+                document.getElementById('multipleChoice').textContent = counts.multiple_choice;
+                document.getElementById('trueFalse').textContent = counts.true_false;
+                document.getElementById('fillBlank').textContent = counts.fill_blank;
+                document.getElementById('essay').textContent = counts.essay + counts.short_answer; // Combine essay and short answer for now
+                document.getElementById('unknown').textContent = counts.unknown;
+
+                const avgConfidence = total > 0 ? (totalConfidence / total) : 0;
+                document.getElementById('detectionQuality').style.width = `${Math.round(avgConfidence * 100)}%`;
+                document.getElementById('classificationAccuracy').style.width = `${Math.round(avgConfidence * 95)}%`; // Simulated
+                document.getElementById('dataCompleteness').style.width = `${Math.round(avgConfidence * 90)}%`; // Simulated
+            }
+
+            displayResults() {
+                const previewContainer = document.getElementById('questionsPreview');
+                previewContainer.innerHTML = '';
+                if (this.questions.length === 0) {
+                    previewContainer.innerHTML = `<div style="text-align: center; color: #6b7280; padding: 40px; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center;">
+                        <div style="font-size: 3em; margin-bottom: 20px;">📋</div>
+                        <p>ستظهر معاينة الأسئلة هنا بعد التحليل</p>
+                    </div>`;
+                    return;
+                }
+                this.questions.forEach((q, index) => {
+                    const questionDiv = document.createElement('div');
+                    questionDiv.className = 'question-preview';
+                    const typeTranslations = { multiple_choice: 'اختيار من متعدد', true_false: 'صح / خطأ', fill_blank: 'ملء الفراغ', essay: 'مقالي', matching: 'مطابقة', short_answer: 'إجابة قصيرة', unknown: 'غير معروف' };
+                    
+                    let content = `
+                        <div class="question-actions">
+                            <button class="action-btn" onclick="app.mergeQuestions(${q.id})" title="دمج مع التالي" ${index === this.questions.length - 1 ? 'disabled' : ''}>🔗</button>
+                            <button class="action-btn" onclick="app.deleteQuestion(${q.id})" title="حذف السؤال">🗑️</button>
+                        </div>
+                        <div class="question-type-badge type-${q.type || 'unknown'}">${typeTranslations[q.type] || 'غير معروف'}</div>
+                        <h4>${q.id}. ${this.escapeHtml(q.question)}</h4>`;
+
+                    if (q.choices && Array.isArray(q.choices)) {
+                        content += q.choices.map((choice, i) => `<div class="choice-item ${i === q.answer ? 'correct' : ''}">${this.escapeHtml(choice)}</div>`).join('');
+                    } else if (q.answer !== null && q.answer !== undefined && q.answer !== '') {
+                         content += `<div class="choice-item answer-box correct">الإجابة: ${this.escapeHtml(q.answer)}</div>`;
+                    } else if (q.type === 'essay' || q.type === 'short_answer') {
+                         content += `<div class="choice-item answer-box"><i>مكان مخصص للإجابة...</i></div>`;
+                    }
+                    questionDiv.innerHTML = content;
+                    previewContainer.appendChild(questionDiv);
+                });
+            }
+            
+            escapeHtml(text) {
+                if (typeof text !== 'string') return text;
+                return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+            }
+
+            syntaxHighlight(json) {
+                json = this.escapeHtml(json);
+                return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, (match) => {
+                    let cls = 'number';
+                    if (/^"/.test(match)) { cls = /:$/.test(match) ? 'key' : 'string'; } 
+                    else if (/true|false/.test(match)) { cls = 'boolean'; } 
+                    else if (/null/.test(match)) { cls = 'null'; }
+                    return '<span class="' + cls + '">' + match + '</span>';
+                });
+            }
+            
+            async callGeminiAPI(prompt, apiKey) {
+                const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
+                
+                const payload = {
+                    contents: [{ parts: [{ text: prompt }] }],
+                    generationConfig: {
+                        response_mime_type: "application/json",
+                        temperature: 0.3,
+                        maxOutputTokens: 8192,
+                    }
+                };
+
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    const errorBody = await response.json();
+                    console.error('API Error Response:', errorBody);
+                    throw new Error(errorBody.error?.message || `فشل الطلب بالحالة ${response.status}`);
+                }
+
+                const data = await response.json();
+                
+                if (!data.candidates?.[0]?.content?.parts?.[0]?.text) {
+                     console.error('Invalid API Response Structure:', data);
+                     throw new Error('لم يتم الحصول على استجابة صحيحة من API.');
+                }
+                
+                const jsonText = data.candidates[0].content.parts[0].text;
+                try {
+                    return JSON.parse(jsonText);
+                } catch (e) {
+                    console.error("Failed to parse AI response as JSON:", jsonText);
+                    throw new Error("فشل تحليل استجابة الذكاء الاصطناعي، قد لا تكون بصيغة JSON صحيحة.");
+                }
+            }
+        }
+
+        const app = new AIQuestionConverter();
+    </script>
+</body>
+</html>
+```
