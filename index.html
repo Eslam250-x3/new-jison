@@ -1065,8 +1065,12 @@
           dialect: ['arabic']
         };
 
-        // فتح وغلق نافذة التخصيص
-        document.getElementById('customizeBtn').onclick = function() { app.openCustomizeModal(); };
+        // فتح وغلق نافذة التخصيص بعد التأكد من وجود app
+        window.onload = function() {
+          const app = new AIQuestionConverter(); // Ensure app is defined before assigning event
+          document.getElementById('customizeBtn').onclick = function() { app.openCustomizeModal(); };
+        };
+
         function fillDialectOptions(lang) {
           const dialectSelect = document.getElementById('dialectSelect');
           dialectSelect.innerHTML = '';
