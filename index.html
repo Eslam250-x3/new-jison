@@ -797,11 +797,12 @@
                 this.updateUIAfterChange('تم التحليل المبدئي بنجاح.');
             }
             
-            intelligentQuestionSplitting(text) {
-                return text.split(/(?=\n*\s*(?:\d{1,3}[.)]|\d{1,3}\s*-)\s*)|(?=\n\s*\n)/)
-                           .map(b => b.trim())
-                           .filter(block => block.length > 5);
-            }
+           intelligentQuestionSplitting(text) {
+    // هذا التقسيم يعتمد على أرقام الأسئلة أو سطرين فارغين للفصل
+    return text.split(/(?=\n*\s*\d+\s*[.-])|(?=\n\n)/)
+               .filter(block => block.trim().length > 5)
+               .map(b => b.trim());
+}
 
             analyzeQuestion(block, id) {
                 const type = this.detectQuestionType(block);
@@ -827,56 +828,39 @@
                 
                 return { id, originalText: block, type, confidence: Math.min(confidence, 1.0), ...structure };
             }
+detectQuestionType(text) {
+    // 1. تحقق من أسئلة الصح والخطأ أولاً لأنها الأكثر تميزاً
+    if (this.patterns.trueFalse.test(text)) {
+        return 'true_false';
+    }
 
-            detectQuestionType(text) {
-                if (this.patterns.trueFalse.test(text)) return 'true_false';
-                if (this.patterns.matching.test(text)) return 'matching';
-                if (this.patterns.fillBlank.test(text)) return 'fill_blank';
+    // 2. تحقق من أسئلة التوصيل
+    if (this.patterns.matching.test(text)) {
+        return 'matching';
+    }
+    
+    // 3. تحقق من أسئلة ملء الفراغ
+    if (this.patterns.fillBlank.test(text)) {
+        return 'fill_blank';
+    }
 
-                const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
-                if (lines.length < 3) {
-                    if (this.patterns.essayOrShortAnswer.test(text) || this.patterns.questionStem.test(lines[0] || '')) {
-                        return 'short_answer';
-                    }
-                    return 'unknown';
-                }
+    // 4. تحقق من أسئلة الاختيار من متعدد بطريقة بسيطة ومباشرة
+    const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+    
+    // إذا كان هناك سطران على الأقل والسطر الثاني يبدأ بحرف ترقيم، فهو اختيار من متعدد
+    if (lines.length >= 2 && this.patterns.choice.test(lines[1])) {
+        return 'multiple_choice';
+    }
+    
+    // 5. تحقق من الأسئلة المقالية أو التي تتطلب إجابة قصيرة
+    if (this.patterns.essayOrShortAnswer.test(text) || this.patterns.questionStem.test(lines[0] || '')) {
+        // يمكن التمييز بين المقالي والقصير بناءً على الطول
+        return text.length > 200 ? 'essay' : 'short_answer';
+    }
 
-                const prefixedChoiceLines = lines.slice(1).filter(line => this.patterns.choice.test(line));
-                if (prefixedChoiceLines.length >= 2) {
-                    return 'multiple_choice';
-                }
-
-                let splitIndex = 1;
-                for (let i = 1; i < lines.length; i++) {
-                    const prevLine = lines[i - 1];
-                    const currentLine = lines[i];
-                    if (prevLine.endsWith(':') || prevLine.endsWith('وهي')) {
-                        splitIndex = i;
-                        break;
-                    }
-                    if (prevLine.length > (currentLine.length * 1.5) && prevLine.length > 30 && currentLine.length < 80) {
-                        splitIndex = i;
-                        break;
-                    }
-                }
-
-                const potentialChoices = lines.slice(splitIndex);
-                const areChoicesShort = potentialChoices.every(choice => choice.length < 80 && choice.length > 1);
-                const lastLineIsNoise = /^\d{10,}$/.test(potentialChoices[potentialChoices.length - 1] || '');
-
-                if (potentialChoices.length >= 2 && areChoicesShort && !lastLineIsNoise) {
-                    const choicesAsText = potentialChoices.join(' ');
-                    if (!this.patterns.essayOrShortAnswer.test(choicesAsText)) {
-                        return 'multiple_choice';
-                    }
-                }
-
-                if (this.patterns.essayOrShortAnswer.test(text) || this.patterns.questionStem.test(lines[0])) {
-                    return text.length > 200 ? 'essay' : 'short_answer';
-                }
-                
-                return 'unknown';
-            }
+    // 6. إذا فشلت كل الشروط، اعتبره نوعاً غير معروف
+    return 'unknown';
+}
 
             // ⭐====== تم استبدال هذه الدالة بالمنطق القديم والبسيط ======⭐
             analyzeMultipleChoice(text) {
