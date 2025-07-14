@@ -1272,17 +1272,27 @@
 
             analyzeMultipleChoice(text) {
                 const lines = text.split('\n').filter(line => line.trim() !== '');
+                // السطر الأول هو نص السؤال
                 const question = lines[0].replace(/^\d+\s*[.-]\s*/, '').trim();
                 const choices = [];
                 let correctAnswerIndex = null;
+                // نبدأ من السطر الثاني
                 for (let i = 1; i < lines.length; i++) {
-                    let choiceText = lines[i].replace(/^[أ-ي]\s*[.)-]\s*/, '').trim();
+                    // إذا كان السطر يبدأ بـ (أ، ب، ج، ... أو A, B, C, ... أو رقم) احذف البادئة، وإلا اعتبره خيارًا عاديًا
+                    let choiceText = lines[i].replace(/^[أ-يa-zA-Z0-9]\s*[.)-]?\s*/, '').trim();
+                    // إذا لم يوجد بادئة، اعتبر السطر كله خيار
+                    if (choiceText === '' && lines[i].trim() !== '') {
+                        choiceText = lines[i].trim();
+                    }
+                    // التقط علامة النجمة لأي خيار
                     if (choiceText.includes('*')) {
                         correctAnswerIndex = choices.length;
                         choiceText = choiceText.replace(/\*/g, '').trim();
                     }
                     choices.push(choiceText);
                 }
+                // إذا لم يوجد بادئة لأي خيار، لكن هناك على الأقل 2 أو 3 خيارات، اعتبرها كلها خيارات
+                // (تمت المعالجة بالفعل أعلاه)
                 return { question, choices, answer: correctAnswerIndex };
             }
 
