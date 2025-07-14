@@ -498,6 +498,433 @@
           }
         }
 
+        // تعريف كلاس QuestionTypeDetector خارج أي كلاس آخر
+        class QuestionTypeDetector {
+            constructor() {
+                this.cache = new Map();
+                this.cacheMaxSize = 1000;
+                this.initializePatterns();
+                this.initializeKeywords();
+            }
+
+            initializePatterns() {
+                this.patterns = {
+                    trueFalse: {
+                        primary: /\b(صح|خطأ|صحيح|خاطئ|true|false)\b/gi,
+                        secondary: /(اجب\s*ب\s*(صح|خطأ)|mark\s*(true|false)|اختر\s*(صح|خطأ))/gi,
+                        negation: /(ليس\s*(صح|خطأ)|not\s*(true|false))/gi
+                    },
+                    multipleChoice: {
+                        arabic: /^[أ-ي]\s*[.)-]/gm,
+                        numbers: /^[1-9]\s*[.)-]/gm,
+                        english: /^[a-z]\s*[.)-]/gmi,
+                        inline: /([أ-ي]|[1-4])\s*[.)-]/g
+                    },
+                    essay: {
+                        commands: /(اشرح|وضح|اكتب|ناقش|برأيك|علل|قارن|حلل|استنتج|define|explain|discuss|analyze)/gi,
+                        questions: /(كيف|لماذا|متى|أين|ما\s*هو|what|why|how|when|where)/gi,
+                        descriptive: /(وصف|describe|elaborate|justify)/gi
+                    },
+                    fillInBlank: {
+                        blanks: /_{3,}|\[\s*\]|\(\s*\)/g,
+                        complete: /(أكمل|املأ|complete|fill)/gi
+                    }
+                };
+            }
+
+            initializeKeywords() {
+                this.keywords = {
+                    trueFalse: {
+                        strong: ['صح أم خطأ', 'true or false', 'صحيح أم خاطئ'],
+                        medium: ['صح', 'خطأ', 'صحيح', 'خاطئ', 'true', 'false'],
+                        weak: ['اجب بصح', 'mark true', 'اختر الصحيح']
+                    },
+                    multipleChoice: {
+                        strong: ['اختر الإجابة الصحيحة', 'choose the correct', 'أي من التالي'],
+                        medium: ['اختر', 'اختار', 'أي من', 'which of'],
+                        weak: ['من بين', 'among', 'between']
+                    },
+                    essay: {
+                        strong: ['اكتب مقالاً', 'write an essay', 'ناقش بالتفصيل'],
+                        medium: ['اشرح', 'وضح', 'ناقش', 'explain', 'discuss'],
+                        weak: ['برأيك', 'علل', 'justify', 'your opinion']
+                    },
+                    fillInBlank: {
+                        strong: ['أكمل الجمل', 'fill in the blanks', 'املأ الفراغات'],
+                        medium: ['أكمل', 'املأ', 'complete', 'fill'],
+                        weak: ['الفراغ', 'blank', 'missing']
+                    }
+                };
+            }
+
+            detectQuestionType(text) {
+                try {
+                    // التحقق من صحة المدخل
+                    if (!this.isValidInput(text)) {
+                        return { type: 'unknown', confidence: 0, reason: 'Invalid input' };
+                    }
+
+                    const cleanText = this.cleanText(text);
+                    const cacheKey = this.generateCacheKey(cleanText);
+
+                    // فحص الـ cache
+                    if (this.cache.has(cacheKey)) {
+                        return this.cache.get(cacheKey);
+                    }
+
+                    // تحليل النص
+                    const analysis = this.analyzeText(cleanText);
+                    const result = this.determineQuestionType(analysis);
+
+                    // حفظ في الـ cache
+                    this.updateCache(cacheKey, result);
+
+                    return result;
+                } catch (error) {
+                    console.error('Error in question type detection:', error);
+                    return { type: 'unknown', confidence: 0, reason: 'Processing error' };
+                }
+            }
+
+            isValidInput(text) {
+                return text && 
+                       typeof text === 'string' && 
+                       text.trim().length > 0 && 
+                       text.trim().length < 10000; // حد أقصى معقول
+            }
+
+            cleanText(text) {
+                return text
+                    .trim()
+                    .replace(/\s+/g, ' ') // توحيد المسافات
+                    .replace(/[۰-۹]/g, (d) => '٠١٢٣٤٥٦٧٨٩'[d.charCodeAt(0) - '۰'.charCodeAt(0)]) // تحويل الأرقام الفارسية
+                    .replace(/[٠-٩]/g, (d) => '0123456789'[d.charCodeAt(0) - '٠'.charCodeAt(0)]); // تحويل الأرقام العربية
+            }
+
+            generateCacheKey(text) {
+                // استخدام أول 200 حرف + hash للنص الكامل
+                const prefix = text.substring(0, 200);
+                const hash = this.simpleHash(text);
+                return `${prefix}_${hash}`;
+            }
+
+            simpleHash(str) {
+                let hash = 0;
+                for (let i = 0; i < str.length; i++) {
+                    const char = str.charCodeAt(i);
+                    hash = ((hash << 5) - hash) + char;
+                    hash = hash & hash; // تحويل إلى 32bit integer
+                }
+                return hash;
+            }
+
+            analyzeText(text) {
+                const lines = text.split('\n').filter(line => line.trim());
+                const wordCount = text.split(/\s+/).length;
+                
+                return {
+                    text,
+                    lines,
+                    wordCount,
+                    hasMultipleLines: lines.length > 1,
+                    structure: this.analyzeStructure(lines),
+                    patterns: this.analyzePatterns(text),
+                    keywords: this.analyzeKeywords(text)
+                };
+            }
+
+            analyzeStructure(lines) {
+                const structure = {
+                    hasNumberedOptions: false,
+                    hasArabicOptions: false,
+                    hasEnglishOptions: false,
+                    hasBlanks: false,
+                    optionCount: 0
+                };
+
+                lines.forEach(line => {
+                    const trimmed = line.trim();
+                    if (this.patterns.multipleChoice.numbers.test(trimmed)) {
+                        structure.hasNumberedOptions = true;
+                        structure.optionCount++;
+                    }
+                    if (this.patterns.multipleChoice.arabic.test(trimmed)) {
+                        structure.hasArabicOptions = true;
+                        structure.optionCount++;
+                    }
+                    if (this.patterns.multipleChoice.english.test(trimmed)) {
+                        structure.hasEnglishOptions = true;
+                        structure.optionCount++;
+                    }
+                    if (this.patterns.fillInBlank.blanks.test(trimmed)) {
+                        structure.hasBlanks = true;
+                    }
+                });
+
+                return structure;
+            }
+
+            analyzePatterns(text) {
+                const results = {};
+                
+                // فحص كل نوع من الأنماط
+                for (const [type, patterns] of Object.entries(this.patterns)) {
+                    results[type] = {};
+                    for (const [subType, pattern] of Object.entries(patterns)) {
+                        const matches = [...text.matchAll(pattern)];
+                        results[type][subType] = {
+                            matches: matches.length,
+                            found: matches.length > 0,
+                            content: matches.map(m => m[0])
+                        };
+                    }
+                }
+
+                return results;
+            }
+
+            analyzeKeywords(text) {
+                const results = {};
+                const lowerText = text.toLowerCase();
+                
+                for (const [type, categories] of Object.entries(this.keywords)) {
+                    results[type] = { score: 0, matches: [] };
+                    
+                    for (const [strength, keywords] of Object.entries(categories)) {
+                        const weight = strength === 'strong' ? 3 : strength === 'medium' ? 2 : 1;
+                        
+                        keywords.forEach(keyword => {
+                            if (lowerText.includes(keyword.toLowerCase())) {
+                                results[type].score += weight;
+                                results[type].matches.push({ keyword, strength });
+                            }
+                        });
+                    }
+                }
+
+                return results;
+            }
+
+            determineQuestionType(analysis) {
+                const scores = {
+                    true_false: this.calculateTrueFalseScore(analysis),
+                    multiple_choice: this.calculateMultipleChoiceScore(analysis),
+                    essay: this.calculateEssayScore(analysis),
+                    fill_in_blank: this.calculateFillInBlankScore(analysis)
+                };
+
+                // العثور على أعلى نتيجة
+                const sortedScores = Object.entries(scores)
+                    .sort((a, b) => b[1].score - a[1].score);
+
+                const [topType, topScore] = sortedScores[0];
+                const [secondType, secondScore] = sortedScores[1] || [null, { score: 0 }];
+
+                // تحديد الثقة بناءً على الفرق بين أعلى نتيجتين
+                const confidence = this.calculateConfidence(topScore.score, secondScore.score);
+
+                return {
+                    type: confidence > 0.3 ? topType : 'unknown',
+                    confidence: Math.round(confidence * 100),
+                    scores: Object.fromEntries(
+                        Object.entries(scores).map(([type, data]) => [type, data.score])
+                    ),
+                    details: topScore.details,
+                    alternativeTypes: sortedScores.slice(1, 3).map(([type, data]) => ({
+                        type,
+                        score: data.score,
+                        confidence: Math.round((data.score / topScore.score) * 100)
+                    }))
+                };
+            }
+
+            calculateTrueFalseScore(analysis) {
+                let score = 0;
+                const details = [];
+
+                // فحص الأنماط
+                if (analysis.patterns.trueFalse.primary.found) {
+                    score += 8;
+                    details.push('Found true/false keywords');
+                }
+
+                if (analysis.patterns.trueFalse.secondary.found) {
+                    score += 5;
+                    details.push('Found true/false question format');
+                }
+
+                // فحص الكلمات المفتاحية
+                score += analysis.keywords.trueFalse.score;
+                if (analysis.keywords.trueFalse.matches.length > 0) {
+                    details.push(`Keyword matches: ${analysis.keywords.trueFalse.matches.length}`);
+                }
+
+                // عوامل إضافية
+                if (analysis.wordCount < 30) {
+                    score += 2;
+                    details.push('Short text suitable for true/false');
+                }
+
+                // عوامل سلبية
+                if (analysis.structure.optionCount > 2) {
+                    score -= 3;
+                    details.push('Too many options for true/false');
+                }
+
+                return { score, details };
+            }
+
+            calculateMultipleChoiceScore(analysis) {
+                let score = 0;
+                const details = [];
+
+                // فحص الهيكل
+                if (analysis.structure.hasArabicOptions) {
+                    score += 7;
+                    details.push('Arabic option markers found');
+                }
+
+                if (analysis.structure.hasNumberedOptions) {
+                    score += 6;
+                    details.push('Numbered options found');
+                }
+
+                if (analysis.structure.hasEnglishOptions) {
+                    score += 5;
+                    details.push('English option markers found');
+                }
+
+                // عدد الخيارات
+                if (analysis.structure.optionCount >= 3 && analysis.structure.optionCount <= 5) {
+                    score += 5;
+                    details.push(`Appropriate option count: ${analysis.structure.optionCount}`);
+                }
+
+                // الكلمات المفتاحية
+                score += analysis.keywords.multipleChoice.score;
+                if (analysis.keywords.multipleChoice.matches.length > 0) {
+                    details.push(`Keyword matches: ${analysis.keywords.multipleChoice.matches.length}`);
+                }
+
+                // أسطر متعددة
+                if (analysis.hasMultipleLines) {
+                    score += 2;
+                    details.push('Multiple lines indicate options');
+                }
+
+                return { score, details };
+            }
+
+            calculateEssayScore(analysis) {
+                let score = 0;
+                const details = [];
+
+                // فحص الأنماط
+                if (analysis.patterns.essay.commands.found) {
+                    score += 6;
+                    details.push('Essay command words found');
+                }
+
+                if (analysis.patterns.essay.questions.found) {
+                    score += 4;
+                    details.push('Question words found');
+                }
+
+                // الكلمات المفتاحية
+                score += analysis.keywords.essay.score;
+                if (analysis.keywords.essay.matches.length > 0) {
+                    details.push(`Keyword matches: ${analysis.keywords.essay.matches.length}`);
+                }
+
+                // عدد الكلمات
+                if (analysis.wordCount > 15) {
+                    score += 3;
+                    details.push('Word count suitable for essay');
+                }
+
+                // عدم وجود خيارات
+                if (analysis.structure.optionCount === 0) {
+                    score += 2;
+                    details.push('No options found');
+                }
+
+                return { score, details };
+            }
+
+            calculateFillInBlankScore(analysis) {
+                let score = 0;
+                const details = [];
+
+                // فحص الفراغات
+                if (analysis.structure.hasBlanks) {
+                    score += 8;
+                    details.push('Blank spaces found');
+                }
+
+                if (analysis.patterns.fillInBlank.blanks.found) {
+                    score += 6;
+                    details.push('Blank patterns detected');
+                }
+
+                // الكلمات المفتاحية
+                score += analysis.keywords.fillInBlank.score;
+                if (analysis.keywords.fillInBlank.matches.length > 0) {
+                    details.push(`Keyword matches: ${analysis.keywords.fillInBlank.matches.length}`);
+                }
+
+                return { score, details };
+            }
+
+            calculateConfidence(topScore, secondScore) {
+                if (topScore === 0) return 0;
+                
+                const difference = topScore - secondScore;
+                const normalizedScore = Math.min(topScore / 20, 1); // تطبيع النتيجة
+                const confidenceFromDifference = Math.min(difference / 10, 1);
+                
+                return (normalizedScore + confidenceFromDifference) / 2;
+            }
+
+            updateCache(key, value) {
+                // تنظيف الـ cache إذا وصل للحد الأقصى
+                if (this.cache.size >= this.cacheMaxSize) {
+                    const firstKey = this.cache.keys().next().value;
+                    this.cache.delete(firstKey);
+                }
+                
+                this.cache.set(key, value);
+            }
+
+            // دالة لتصفية الـ cache
+            clearCache() {
+                this.cache.clear();
+            }
+
+            // دالة لإحصائيات الـ cache
+            getCacheStats() {
+                return {
+                    size: this.cache.size,
+                    maxSize: this.cacheMaxSize,
+                    hitRate: this.cacheHits / (this.cacheHits + this.cacheMisses) || 0
+                };
+            }
+
+            // دالة لتحديث الإعدادات
+            updateSettings(settings) {
+                if (settings.cacheMaxSize) {
+                    this.cacheMaxSize = settings.cacheMaxSize;
+                }
+                if (settings.patterns) {
+                    this.patterns = { ...this.patterns, ...settings.patterns };
+                }
+                if (settings.keywords) {
+                    this.keywords = { ...this.keywords, ...settings.keywords };
+                }
+            }
+        }
+        // تعريف detector عالميًا
+        window.detector = new QuestionTypeDetector();
+
         class AIQuestionConverter {
             constructor() {
                 this.questions = [];
@@ -828,447 +1255,21 @@
                 
                 return { id, originalText: block, type, confidence: Math.min(confidence, 1.0), ...structure };
             }
-  class QuestionTypeDetector {
-    constructor() {
-        this.cache = new Map();
-        this.cacheMaxSize = 1000;
-        this.initializePatterns();
-        this.initializeKeywords();
-    }
-
-    initializePatterns() {
-        this.patterns = {
-            trueFalse: {
-                primary: /\b(صح|خطأ|صحيح|خاطئ|true|false)\b/gi,
-                secondary: /(اجب\s*ب\s*(صح|خطأ)|mark\s*(true|false)|اختر\s*(صح|خطأ))/gi,
-                negation: /(ليس\s*(صح|خطأ)|not\s*(true|false))/gi
-            },
-            multipleChoice: {
-                arabic: /^[أ-ي]\s*[.)-]/gm,
-                numbers: /^[1-9]\s*[.)-]/gm,
-                english: /^[a-z]\s*[.)-]/gmi,
-                inline: /([أ-ي]|[1-4])\s*[.)-]/g
-            },
-            essay: {
-                commands: /(اشرح|وضح|اكتب|ناقش|برأيك|علل|قارن|حلل|استنتج|define|explain|discuss|analyze)/gi,
-                questions: /(كيف|لماذا|متى|أين|ما\s*هو|what|why|how|when|where)/gi,
-                descriptive: /(وصف|describe|elaborate|justify)/gi
-            },
-            fillInBlank: {
-                blanks: /_{3,}|\[\s*\]|\(\s*\)/g,
-                complete: /(أكمل|املأ|complete|fill)/gi
-            }
-        };
-    }
-
-    initializeKeywords() {
-        this.keywords = {
-            trueFalse: {
-                strong: ['صح أم خطأ', 'true or false', 'صحيح أم خاطئ'],
-                medium: ['صح', 'خطأ', 'صحيح', 'خاطئ', 'true', 'false'],
-                weak: ['اجب بصح', 'mark true', 'اختر الصحيح']
-            },
-            multipleChoice: {
-                strong: ['اختر الإجابة الصحيحة', 'choose the correct', 'أي من التالي'],
-                medium: ['اختر', 'اختار', 'أي من', 'which of'],
-                weak: ['من بين', 'among', 'between']
-            },
-            essay: {
-                strong: ['اكتب مقالاً', 'write an essay', 'ناقش بالتفصيل'],
-                medium: ['اشرح', 'وضح', 'ناقش', 'explain', 'discuss'],
-                weak: ['برأيك', 'علل', 'justify', 'your opinion']
-            },
-            fillInBlank: {
-                strong: ['أكمل الجمل', 'fill in the blanks', 'املأ الفراغات'],
-                medium: ['أكمل', 'املأ', 'complete', 'fill'],
-                weak: ['الفراغ', 'blank', 'missing']
-            }
-        };
-    }
-
-    detectQuestionType(text) {
-        try {
-            // التحقق من صحة المدخل
-            if (!this.isValidInput(text)) {
-                return { type: 'unknown', confidence: 0, reason: 'Invalid input' };
-            }
-
-            const cleanText = this.cleanText(text);
-            const cacheKey = this.generateCacheKey(cleanText);
-
-            // فحص الـ cache
-            if (this.cache.has(cacheKey)) {
-                return this.cache.get(cacheKey);
-            }
-
-            // تحليل النص
-            const analysis = this.analyzeText(cleanText);
-            const result = this.determineQuestionType(analysis);
-
-            // حفظ في الـ cache
-            this.updateCache(cacheKey, result);
-
-            return result;
-        } catch (error) {
-            console.error('Error in question type detection:', error);
-            return { type: 'unknown', confidence: 0, reason: 'Processing error' };
-        }
-    }
-
-    isValidInput(text) {
-        return text && 
-               typeof text === 'string' && 
-               text.trim().length > 0 && 
-               text.trim().length < 10000; // حد أقصى معقول
-    }
-
-    cleanText(text) {
-        return text
-            .trim()
-            .replace(/\s+/g, ' ') // توحيد المسافات
-            .replace(/[۰-۹]/g, (d) => '٠١٢٣٤٥٦٧٨٩'[d.charCodeAt(0) - '۰'.charCodeAt(0)]) // تحويل الأرقام الفارسية
-            .replace(/[٠-٩]/g, (d) => '0123456789'[d.charCodeAt(0) - '٠'.charCodeAt(0)]); // تحويل الأرقام العربية
-    }
-
-    generateCacheKey(text) {
-        // استخدام أول 200 حرف + hash للنص الكامل
-        const prefix = text.substring(0, 200);
-        const hash = this.simpleHash(text);
-        return `${prefix}_${hash}`;
-    }
-
-    simpleHash(str) {
-        let hash = 0;
-        for (let i = 0; i < str.length; i++) {
-            const char = str.charCodeAt(i);
-            hash = ((hash << 5) - hash) + char;
-            hash = hash & hash; // تحويل إلى 32bit integer
-        }
-        return hash;
-    }
-
-    analyzeText(text) {
-        const lines = text.split('\n').filter(line => line.trim());
-        const wordCount = text.split(/\s+/).length;
-        
-        return {
-            text,
-            lines,
-            wordCount,
-            hasMultipleLines: lines.length > 1,
-            structure: this.analyzeStructure(lines),
-            patterns: this.analyzePatterns(text),
-            keywords: this.analyzeKeywords(text)
-        };
-    }
-
-    analyzeStructure(lines) {
-        const structure = {
-            hasNumberedOptions: false,
-            hasArabicOptions: false,
-            hasEnglishOptions: false,
-            hasBlanks: false,
-            optionCount: 0
-        };
-
-        lines.forEach(line => {
-            const trimmed = line.trim();
-            if (this.patterns.multipleChoice.numbers.test(trimmed)) {
-                structure.hasNumberedOptions = true;
-                structure.optionCount++;
-            }
-            if (this.patterns.multipleChoice.arabic.test(trimmed)) {
-                structure.hasArabicOptions = true;
-                structure.optionCount++;
-            }
-            if (this.patterns.multipleChoice.english.test(trimmed)) {
-                structure.hasEnglishOptions = true;
-                structure.optionCount++;
-            }
-            if (this.patterns.fillInBlank.blanks.test(trimmed)) {
-                structure.hasBlanks = true;
-            }
-        });
-
-        return structure;
-    }
-
-    analyzePatterns(text) {
-        const results = {};
-        
-        // فحص كل نوع من الأنماط
-        for (const [type, patterns] of Object.entries(this.patterns)) {
-            results[type] = {};
-            for (const [subType, pattern] of Object.entries(patterns)) {
-                const matches = [...text.matchAll(pattern)];
-                results[type][subType] = {
-                    matches: matches.length,
-                    found: matches.length > 0,
-                    content: matches.map(m => m[0])
-                };
-            }
-        }
-
-        return results;
-    }
-
-    analyzeKeywords(text) {
-        const results = {};
-        const lowerText = text.toLowerCase();
-        
-        for (const [type, categories] of Object.entries(this.keywords)) {
-            results[type] = { score: 0, matches: [] };
             
-            for (const [strength, keywords] of Object.entries(categories)) {
-                const weight = strength === 'strong' ? 3 : strength === 'medium' ? 2 : 1;
-                
-                keywords.forEach(keyword => {
-                    if (lowerText.includes(keyword.toLowerCase())) {
-                        results[type].score += weight;
-                        results[type].matches.push({ keyword, strength });
-                    }
-                });
+            detectQuestionType(text) {
+                // استخدم الكاشف الخارجي
+                if (window.detector && typeof window.detector.detectQuestionType === 'function') {
+                    const result = window.detector.detectQuestionType(text);
+                    return result.type || 'unknown';
+                }
+                // fallback بسيط
+                if (/\b(صح|خطأ|صحيح|خاطئ|true|false)\b/i.test(text)) return 'true_false';
+                if (/^[أ-يa-z0-9]\s*[.)-]/im.test(text)) return 'multiple_choice';
+                if (/____+|\{|\[|\(/.test(text)) return 'fill_blank';
+                if (/(اشرح|وضح|ناقش|اكتب|علل|برر|فسر|قارن|لخص|صف|برأيك|why|explain|discuss|describe|justify)/i.test(text)) return 'essay';
+                return 'unknown';
             }
-        }
 
-        return results;
-    }
-
-    determineQuestionType(analysis) {
-        const scores = {
-            true_false: this.calculateTrueFalseScore(analysis),
-            multiple_choice: this.calculateMultipleChoiceScore(analysis),
-            essay: this.calculateEssayScore(analysis),
-            fill_in_blank: this.calculateFillInBlankScore(analysis)
-        };
-
-        // العثور على أعلى نتيجة
-        const sortedScores = Object.entries(scores)
-            .sort((a, b) => b[1].score - a[1].score);
-
-        const [topType, topScore] = sortedScores[0];
-        const [secondType, secondScore] = sortedScores[1] || [null, { score: 0 }];
-
-        // تحديد الثقة بناءً على الفرق بين أعلى نتيجتين
-        const confidence = this.calculateConfidence(topScore.score, secondScore.score);
-
-        return {
-            type: confidence > 0.3 ? topType : 'unknown',
-            confidence: Math.round(confidence * 100),
-            scores: Object.fromEntries(
-                Object.entries(scores).map(([type, data]) => [type, data.score])
-            ),
-            details: topScore.details,
-            alternativeTypes: sortedScores.slice(1, 3).map(([type, data]) => ({
-                type,
-                score: data.score,
-                confidence: Math.round((data.score / topScore.score) * 100)
-            }))
-        };
-    }
-
-    calculateTrueFalseScore(analysis) {
-        let score = 0;
-        const details = [];
-
-        // فحص الأنماط
-        if (analysis.patterns.trueFalse.primary.found) {
-            score += 8;
-            details.push('Found true/false keywords');
-        }
-
-        if (analysis.patterns.trueFalse.secondary.found) {
-            score += 5;
-            details.push('Found true/false question format');
-        }
-
-        // فحص الكلمات المفتاحية
-        score += analysis.keywords.trueFalse.score;
-        if (analysis.keywords.trueFalse.matches.length > 0) {
-            details.push(`Keyword matches: ${analysis.keywords.trueFalse.matches.length}`);
-        }
-
-        // عوامل إضافية
-        if (analysis.wordCount < 30) {
-            score += 2;
-            details.push('Short text suitable for true/false');
-        }
-
-        // عوامل سلبية
-        if (analysis.structure.optionCount > 2) {
-            score -= 3;
-            details.push('Too many options for true/false');
-        }
-
-        return { score, details };
-    }
-
-    calculateMultipleChoiceScore(analysis) {
-        let score = 0;
-        const details = [];
-
-        // فحص الهيكل
-        if (analysis.structure.hasArabicOptions) {
-            score += 7;
-            details.push('Arabic option markers found');
-        }
-
-        if (analysis.structure.hasNumberedOptions) {
-            score += 6;
-            details.push('Numbered options found');
-        }
-
-        if (analysis.structure.hasEnglishOptions) {
-            score += 5;
-            details.push('English option markers found');
-        }
-
-        // عدد الخيارات
-        if (analysis.structure.optionCount >= 3 && analysis.structure.optionCount <= 5) {
-            score += 5;
-            details.push(`Appropriate option count: ${analysis.structure.optionCount}`);
-        }
-
-        // الكلمات المفتاحية
-        score += analysis.keywords.multipleChoice.score;
-        if (analysis.keywords.multipleChoice.matches.length > 0) {
-            details.push(`Keyword matches: ${analysis.keywords.multipleChoice.matches.length}`);
-        }
-
-        // أسطر متعددة
-        if (analysis.hasMultipleLines) {
-            score += 2;
-            details.push('Multiple lines indicate options');
-        }
-
-        return { score, details };
-    }
-
-    calculateEssayScore(analysis) {
-        let score = 0;
-        const details = [];
-
-        // فحص الأنماط
-        if (analysis.patterns.essay.commands.found) {
-            score += 6;
-            details.push('Essay command words found');
-        }
-
-        if (analysis.patterns.essay.questions.found) {
-            score += 4;
-            details.push('Question words found');
-        }
-
-        // الكلمات المفتاحية
-        score += analysis.keywords.essay.score;
-        if (analysis.keywords.essay.matches.length > 0) {
-            details.push(`Keyword matches: ${analysis.keywords.essay.matches.length}`);
-        }
-
-        // عدد الكلمات
-        if (analysis.wordCount > 15) {
-            score += 3;
-            details.push('Word count suitable for essay');
-        }
-
-        // عدم وجود خيارات
-        if (analysis.structure.optionCount === 0) {
-            score += 2;
-            details.push('No options found');
-        }
-
-        return { score, details };
-    }
-
-    calculateFillInBlankScore(analysis) {
-        let score = 0;
-        const details = [];
-
-        // فحص الفراغات
-        if (analysis.structure.hasBlanks) {
-            score += 8;
-            details.push('Blank spaces found');
-        }
-
-        if (analysis.patterns.fillInBlank.blanks.found) {
-            score += 6;
-            details.push('Blank patterns detected');
-        }
-
-        // الكلمات المفتاحية
-        score += analysis.keywords.fillInBlank.score;
-        if (analysis.keywords.fillInBlank.matches.length > 0) {
-            details.push(`Keyword matches: ${analysis.keywords.fillInBlank.matches.length}`);
-        }
-
-        return { score, details };
-    }
-
-    calculateConfidence(topScore, secondScore) {
-        if (topScore === 0) return 0;
-        
-        const difference = topScore - secondScore;
-        const normalizedScore = Math.min(topScore / 20, 1); // تطبيع النتيجة
-        const confidenceFromDifference = Math.min(difference / 10, 1);
-        
-        return (normalizedScore + confidenceFromDifference) / 2;
-    }
-
-    updateCache(key, value) {
-        // تنظيف الـ cache إذا وصل للحد الأقصى
-        if (this.cache.size >= this.cacheMaxSize) {
-            const firstKey = this.cache.keys().next().value;
-            this.cache.delete(firstKey);
-        }
-        
-        this.cache.set(key, value);
-    }
-
-    // دالة لتصفية الـ cache
-    clearCache() {
-        this.cache.clear();
-    }
-
-    // دالة لإحصائيات الـ cache
-    getCacheStats() {
-        return {
-            size: this.cache.size,
-            maxSize: this.cacheMaxSize,
-            hitRate: this.cacheHits / (this.cacheHits + this.cacheMisses) || 0
-        };
-    }
-
-    // دالة لتحديث الإعدادات
-    updateSettings(settings) {
-        if (settings.cacheMaxSize) {
-            this.cacheMaxSize = settings.cacheMaxSize;
-        }
-        if (settings.patterns) {
-            this.patterns = { ...this.patterns, ...settings.patterns };
-        }
-        if (settings.keywords) {
-            this.keywords = { ...this.keywords, ...settings.keywords };
-        }
-    }
-}
-
-// مثال على الاستخدام
-const detector = new QuestionTypeDetector();
-
-// اختبار
-const testQuestions = [
-    "الأرض تدور حول الشمس. صح أم خطأ؟",
-    "اختر الإجابة الصحيحة:\nأ) القاهرة\nب) الإسكندرية\nج) الجيزة",
-    "اشرح بالتفصيل أهمية التعليم في المجتمع",
-    "أكمل الجملة: العاصمة المصرية هي _______"
-];
-
-testQuestions.forEach((question, index) => {
-    const result = detector.detectQuestionType(question);
-    console.log(`Question ${index + 1}:`, result);
-});
-
-            // ⭐====== تم استبدال هذه الدالة بالمنطق القديم والبسيط ======⭐
             analyzeMultipleChoice(text) {
                 const lines = text.split('\n').filter(line => line.trim() !== '');
                 const question = lines[0].replace(/^\d+\s*[.-]\s*/, '').trim();
@@ -1284,7 +1285,6 @@ testQuestions.forEach((question, index) => {
                 }
                 return { question, choices, answer: correctAnswerIndex };
             }
-            // ⭐================ نهاية الدالة المستبدلة =================⭐
 
             analyzeTrueFalse(text) {
                 let question = text.replace(this.patterns.trueFalse, '').replace(/^\d+\s*[.-]\s*/, '').trim();
