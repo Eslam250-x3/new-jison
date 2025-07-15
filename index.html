@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>محول الأسئلة الذكي المتطور - النسخة المدمجة</title>
+    <!-- تأكد من تحميل JSZip أولاً -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
         /* --- Basic Setup --- */
         * {
@@ -631,6 +633,10 @@
             }
 
             downloadZip() {
+                if (typeof JSZip === 'undefined') {
+                    this.showMessage('مكتبة JSZip غير متوفرة. تأكد من الاتصال بالإنترنت أو من تحميل المكتبة.', 'error');
+                    return;
+                }
                 if (this.questions.length === 0) {
                     this.showMessage('لا يوجد أسئلة لتحميلها', 'warning');
                     return;
