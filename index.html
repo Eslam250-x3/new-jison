@@ -351,6 +351,7 @@
                 <div class="controls" style="margin-top: auto;">
                     <button class="btn btn-secondary" id="copyBtn" onclick="app.copyJSON()" disabled>📋 نسخ JSON</button>
                     <button class="btn btn-warning" id="downloadBtn" onclick="app.downloadJSON()" disabled>💾 تحميل</button>
+                    <button class="btn btn-warning" id="downloadZipBtn" onclick="app.downloadZip()" disabled>🗜️ تحميل كـ ZIP</button>
                 </div>
             </div>
 
@@ -590,6 +591,7 @@
                 jsonOutput.innerHTML = '';
                 document.getElementById('copyBtn').disabled = true;
                 document.getElementById('downloadBtn').disabled = true;
+                document.getElementById('downloadZipBtn').disabled = true;
                 this.showMessage('تم مسح كل شيء', 'success');
             }
             
@@ -626,6 +628,30 @@
                 document.body.removeChild(a);
                 URL.revokeObjectURL(url);
                 this.showMessage('بدء تحميل الملف...', 'success');
+            }
+
+            downloadZip() {
+                if (this.questions.length === 0) {
+                    this.showMessage('لا يوجد أسئلة لتحميلها', 'warning');
+                    return;
+                }
+                const zip = new JSZip();
+                this.questions.forEach((q, idx) => {
+                    const filename = `question_${q.id || idx + 1}.json`;
+                    const content = JSON.stringify(this.transformToAdvancedFormat(q, idx), null, 2);
+                    zip.file(filename, content);
+                });
+                zip.generateAsync({ type: 'blob' }).then((blob) => {
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'questions.zip';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                    this.showMessage('تم تحميل ملف ZIP بنجاح', 'success');
+                });
             }
 
             // ===== Editing Logic (from original file) =====
@@ -802,6 +828,8 @@
                 this.displayResults();
                 const jsonOutput = document.getElementById('jsonOutput');
                 if (jsonOutput.style.display === 'block') { this.convertToJSON(); }
+                // تفعيل زر ZIP إذا في أسئلة
+                document.getElementById('downloadZipBtn').disabled = this.questions.length === 0;
                 if (message) { this.showMessage(message, 'success'); }
             }
 
@@ -868,26 +896,45 @@
                     const questionDiv = document.createElement('div');
                     questionDiv.className = 'question-preview';
                     const typeTranslations = { multiple_choice: 'اختيار من متعدد', true_false: 'صح / خطأ', fill_blank: 'ملء الفراغ', essay: 'مقالي', matching: 'مطابقة', short_answer: 'إجابة قصيرة', unknown: 'غير معروف' };
-                    let content = `
-                        <div class="question-actions">
-                            <button class="action-btn" onclick="app.mergeQuestions(${q.id})" title="دمج مع التالي" ${index === this.questions.length - 1 ? 'disabled' : ''}>🔗</button>
-                            <button class="action-btn" onclick="app.deleteQuestion(${q.id})" title="حذف السؤال">🗑️</button>
-                        </div>
-                        <div class="question-type-badge type-${q.type || 'unknown'}">${typeTranslations[q.type] || 'غير معروف'}</div>
-                        <h4>${q.id}. <span class="question-stem" style="display:inline;">${this.escapeHtml(q.question)}</span></h4>`;
-
-                    if (q.choices) {
-                        content += q.choices.map((choice, i) => `
-                            <div class="choice-item ${i === q.answer ? 'correct' : ''}"
-                                 style="cursor:pointer;"
-                                 onclick="app.setCorrectAnswer(${q.id}, ${i})"
-                                 title="اضغط لجعل هذا هو الجواب الصحيح">
-                                ${this.escapeHtml(choice)}
-                            </div>`).join('');
-                    } else if (q.answer !== null && q.answer !== undefined && q.answer !== '') {
-                         content += `<div class="choice-item correct">الإجابة: ${this.escapeHtml(q.answer)}</div>`;
+                    if (q._editing) {
+                        let editContent = `
+                            <div class="question-type-badge type-${q.type || 'unknown'}">${typeTranslations[q.type] || 'غير معروف'}</div>
+                            <textarea id="edit-question-${q.id}" style="width:100%;margin-bottom:10px;">${this.escapeHtml(q.question)}</textarea>
+                        `;
+                        if (q.choices) {
+                            editContent += q.choices.map((choice, i) => `
+                                <input id="edit-choice-${q.id}-${i}" type="text" value="${this.escapeHtml(choice)}" style="width:100%;margin-bottom:6px;" />
+                            `).join('');
+                        }
+                        editContent += `
+                            <div style="margin-top:10px;display:flex;gap:10px;">
+                                <button class="btn btn-success" onclick="app.saveEditQuestion(${q.id})">💾 حفظ</button>
+                                <button class="btn btn-secondary" onclick="app.cancelEditQuestion(${q.id})">❌ إلغاء</button>
+                            </div>
+                        `;
+                        questionDiv.innerHTML = editContent;
+                    } else {
+                        let content = `
+                            <div class="question-actions">
+                                <button class="action-btn" onclick="app.mergeQuestions(${q.id})" title="دمج مع التالي" ${index === this.questions.length - 1 ? 'disabled' : ''}>🔗</button>
+                                <button class="action-btn" onclick="app.deleteQuestion(${q.id})" title="حذف السؤال">🗑️</button>
+                                <button class="action-btn" onclick="app.startEditQuestion(${q.id})" title="تعديل السؤال">✏️</button>
+                            </div>
+                            <div class="question-type-badge type-${q.type || 'unknown'}">${typeTranslations[q.type] || 'غير معروف'}</div>
+                            <h4>${q.id}. <span class="question-stem" style="display:inline;">${this.escapeHtml(q.question)}</span></h4>`;
+                        if (q.choices) {
+                            content += q.choices.map((choice, i) => `
+                                <div class="choice-item ${i === q.answer ? 'correct' : ''}"
+                                     style="cursor:pointer;"
+                                     onclick="app.setCorrectAnswer(${q.id}, ${i})"
+                                     title="اضغط لجعل هذا هو الجواب الصحيح">
+                                    ${this.escapeHtml(choice)}
+                                </div>`).join('');
+                        } else if (q.answer !== null && q.answer !== undefined && q.answer !== '') {
+                             content += `<div class="choice-item correct">الإجابة: ${this.escapeHtml(q.answer)}</div>`;
+                        }
+                        questionDiv.innerHTML = content;
                     }
-                    questionDiv.innerHTML = content;
                     previewContainer.appendChild(questionDiv);
                 });
             }
@@ -1009,6 +1056,7 @@
                 // أزرار نسخ وتحميل
                 document.getElementById('copyBtn').textContent = isAr ? '📋 نسخ JSON' : '📋 Copy JSON';
                 document.getElementById('downloadBtn').textContent = isAr ? '💾 تحميل' : '💾 Download';
+                document.getElementById('downloadZipBtn').textContent = isAr ? '🗜️ تحميل كـ ZIP' : '🗜️ Download as ZIP';
                 // نافذة التخصيص
                 document.querySelector('#customizeModal h2').textContent = isAr ? 'تخصيص الإعدادات' : 'Customize Settings';
                 document.querySelector('label[for="categorySelect"]').textContent = isAr ? 'الفئة' : 'Category';
@@ -1059,6 +1107,36 @@
                 if (apiKey) {
                     this.apiKey = apiKey;
                 }
+            }
+
+            startEditQuestion(questionId) {
+                const q = this.questions.find(q => q.id === questionId);
+                if (!q) return;
+                q._editing = true;
+                this.displayResults();
+            }
+
+            saveEditQuestion(questionId) {
+                const q = this.questions.find(q => q.id === questionId);
+                if (!q) return;
+                // احصل على القيم الجديدة
+                const questionInput = document.getElementById(`edit-question-${questionId}`);
+                if (questionInput) q.question = questionInput.value;
+                if (q.choices) {
+                    q.choices = q.choices.map((c, i) => {
+                        const choiceInput = document.getElementById(`edit-choice-${questionId}-${i}`);
+                        return choiceInput ? choiceInput.value : c;
+                    });
+                }
+                q._editing = false;
+                this.updateUIAfterChange('تم حفظ التعديلات');
+            }
+
+            cancelEditQuestion(questionId) {
+                const q = this.questions.find(q => q.id === questionId);
+                if (!q) return;
+                q._editing = false;
+                this.displayResults();
             }
         }
 
