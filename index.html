@@ -496,10 +496,12 @@
             // ***************************************************************
             // ** PARSING & AI LOGIC **
             // ***************************************************************
-            buildAdvancedFormattingPrompt(rawText) {
-                const isArabic = this.language === this.Language.ARABIC;
-                const examples = `
-مثال MCQ:
+         buildAdvancedFormattingPrompt(rawText) {
+        const isArabic = this.language === this.Language.ARABIC;
+        
+        // --- دمجنا كل الأمثلة المفيدة من النسخة القديمة ---
+        const examples = `
+مثال MCQ (نجمة واحدة فقط):
 type: mcq
 [STEM]
 ما عاصمة فرنسا؟
@@ -508,25 +510,14 @@ type: mcq
 * باريس
 - مدريد
 ---
-مثال MRQ:
+مثال MRQ (أكثر من نجمة):
 type: mrq
 [STEM]
-اختر كل اللغات البرمجية من التالي:
+اختر كل اللغات البرمجية:
 [CHOICES]
 * Python
 - HTML
 * JavaScript
-- CSS
----
-مثال OQ (ترتيب):
-type: oq
-[STEM]
-رتّب الأرقام تصاعديًا:
-[CHOICES]
-5
-2
-8
-1
 ---
 مثال Matching:
 type: matching
@@ -535,67 +526,98 @@ type: matching
 [MATCHING_PAIRS]
 فرنسا | باريس
 ألمانيا | برلين
-إيطاليا | روما
 ---
 مثال GapText:
 type: gapText
 [STEM]
-الكوكب [BLANK] هو الأكبر في مجموعتنا الشمسية. له [BLANK] قمراً.
+الكوكب [BLANK] هو الأكبر وله [BLANK] قمراً.
 [GAPS]
 المشتري
 79
 ---
-مثال String:
+مثال معادلة معقدة:
 type: string
 [STEM]
-ما هو أكبر كوكب في المجموعة الشمسية؟
+أوجد حل النظام التالي:
+\`\`
+\\begin{cases} x+y=5 \\\\ x-y=1 \\end{cases}
+\`\`
 [ANSWER]
-المشتري
+x=3, y=2
 `;
-                const basePromptAr = `
-أنت مُنسّق أسئلة ذكي. مهمتك:
-اكتشاف كل سؤال في النص (حتى لو كان غير مُنسّق ومختلط الأنواع).
-تحديد نوع كل سؤال تلقائيًا من: mcq, mrq, oq, gapText, matching, string, frq, frq_ai, input_box.
-إخراج كل سؤال بالتنسيق التالي:
-  1) سطر metadata أعلى كل سؤال: type: <one_of_types>
-  2) [STEM] لنص السؤال
-  3) الوسوم حسب النوع:
-     - mcq/mrq: [CHOICES]، ضع * قبل الصحيحة و- قبل الخاطئة. mcq = بالضبط نجمة واحدة، mrq = واحدة أو أكثر حسب النص.
-     - oq: [CHOICES] عناصر مرتبة فقط، بدون نجوم.
-     - matching: [MATCHING_PAIRS] سطور "يسار | يمين"
-     - gapText: [STEM] يحتوي [BLANK] لكل فجوة، و[GAPS] للإجابات بالترتيب.
-     - string/frq: [ANSWER] نص الإجابة
-     - input_box: [ANSWER] "القيمة | الوحدة" أو "القيمة" لو بدون وحدة
-  4) افصل بين كل سؤال بسطر: ---
-لا تضف id أو language.
-الرياضيات: لا تُعدّل LaTeX، فقط لفّ inline بـ \`...\` و display بـ \`\`...\`\`. حوّل $...$ و $$...$$ و \\(...\\) إن وجدت إلى backticks.
-لا تؤلف محتوى جديد.
-نماذج مهمة:
+        // --- هذه هي النسخة النهائية والمُدمجة من التعليمات ---
+        const basePromptAr = `
+أنت مُنسّق أسئلة خبير ومساعد أكاديمي دقيق. مهمتك هي تحويل نص غير منظم إلى تنسيق منظم وموحد.
+
+**التعليمات الأساسية:**
+1.  **اكتشف** كل سؤال في النص.
+2.  **حدد نوع** كل سؤال تلقائيًا من: mcq, mrq, oq, gapText, matching, string, frq, frq_ai, input_box.
+3.  **أخرج كل سؤال بالتنسيق التالي:**
+    -   سطر بيانات وصفية في الأعلى، مثال: \`type: mcq\`
+    -   وسم \`[STEM]\` لنص السؤال الرئيسي.
+    -   وسوم المحتوى حسب نوع السؤال (\`[CHOICES]\`, \`[MATCHING_PAIRS]\`, \`[GAPS]\`, \`[ANSWER]\`).
+    -   استخدم \`---\` للفصل بين كل سؤال وآخر.
+
+**قواعد أنواع الأسئلة (مهم):**
+-   **MCQ/MRQ:** استخدم \`*\` قبل الإجابة الصحيحة و \`-\` قبل الخاطئة. **MCQ** يجب أن يحتوي على نجمة واحدة فقط، بينما **MRQ** يمكن أن يحتوي على نجمة واحدة أو أكثر.
+-   **Matching:** يجب أن تكون الأزواج في \`[MATCHING_PAIRS]\` مفصولة بـ \`|\`.
+-   **GapText:** استخدم \`[BLANK]\` في نص السؤال لكل فجوة، وضع الإجابات بالترتيب في \`[GAPS]\`.
+-   **Input Box:** يجب أن تكون الإجابة في \`[ANSWER]\` بصيغة \`القيمة | الوحدة\` أو \`القيمة\` فقط إذا لم تكن هناك وحدة.
+
+**قواعد الرياضيات (مهمة للغاية ويجب اتباعها بدقة):**
+-   **لا تقم أبدًا بتعديل** محتوى أو صيغة أي كود LaTeX.
+-   **حوّل المحددات السطرية (inline):** أي نص محاط بـ \`$...\$\` أو \`\\(...\\)\` يجب لفه بـ \`...\` (backtick فردية).
+-   **حوّل المحددات العرض (display):** أي نص محاط بـ \`$$...$$\` أو \`\\[...\\]\` يجب لفه بـ \`\`...\`\` (backticks مزدوجة).
+-   **حوّل البيئات المعقدة:** أي كتلة LaTeX تبدأ بـ \`\\begin{...}\` وتنتهي بـ \`\\end{...}\` يجب أن تُعامل **دائمًا** كمعادلة عرض وتُلف بـ \`\`...\`\` (backticks مزدوجة).
+
+لا تخترع أي محتوى. اتبع القواعد بدقة.
+
+**نماذج:**
 ${examples}
-النص المُدخل:
+
+**النص المطلوب تحويله:**
 ${rawText}
-أعد تنسيق كل الأسئلة بدقة وبالفواصل المطلوبة:
+
+**الناتج المنسق:**
 `;
-                const basePromptEn = `
-You are a question formatter.
-Detect each question from messy/mixed input.
-Auto-detect type per question: mcq, mrq, oq, gapText, matching, string, frq, frq_ai, input_box.
-For each question output:
-  1) First line: type: <one_of_types>
-  2) [STEM] question text
-  3) Tags by type as specified above
-  4) Separate questions with ---
-Do NOT add id or language.
-Math: preserve LaTeX; wrap inline with \`...\` and display with \`\`...\`\`. Convert $...$, $$...$$, \\(...\\) to backticks.
-Do NOT invent content.
-Important examples:
+        // النسخة الإنجليزية بنفس التفاصيل
+        const basePromptEn = `
+You are an expert question formatter and a meticulous academic assistant. Your task is to convert unstructured text into a standardized, structured format.
+
+**Core Instructions:**
+1.  **Detect** every question in the text.
+2.  **Auto-detect** the type for each question from: mcq, mrq, oq, gapText, matching, string, frq, frq_ai, input_box.
+3.  **Format each question as follows:**
+    -   A metadata line at the top, e.g., \`type: mcq\`
+    -   A \`[STEM]\` tag for the main question text.
+    -   Content tags based on the question type (\`[CHOICES]\`, \`[MATCHING_PAIRS]\`, \`[GAPS]\`, \`[ANSWER]\`).
+    -   Use \`---\` to separate each question.
+
+**Question Type Rules (Important):**
+-   **MCQ/MRQ:** Use \`*\` before a correct answer and \`-\` before an incorrect one. **MCQ** must have exactly one star, while **MRQ** can have one or more.
+-   **Matching:** Pairs under \`[MATCHING_PAIRS]\` must be separated by \`|\`.
+-   **GapText:** Use \`[BLANK]\` in the stem for each gap, and place the ordered answers under \`[GAPS]\`.
+-   **Input Box:** The answer under \`[ANSWER]\` should be in the format \`value | unit\` or just \`value\` if there is no unit.
+
+**Mathematics Rules (Crucial and must be followed precisely):**
+-   **Never modify** the content or syntax of any LaTeX code.
+-   **Convert inline delimiters:** Any text surrounded by \`\$...\$\` or \`\\(...\\)\` must be wrapped with \`...\` (single backticks).
+-   **Convert display delimiters:** Any text surrounded by \`\$$...\$$\` or \`\\[...\\]\` must be wrapped with \`\`...\`\` (double backticks).
+-   **Convert complex environments:** Any LaTeX block that starts with \`\\begin{...}\` and ends with \`\\end{...}\` must **always** be treated as display math and wrapped with \`\`...\`\` (double backticks).
+
+Do not invent any content. Follow the rules precisely.
+
+**Examples:**
 ${examples}
-Input:
+
+**Input Text to Convert:**
 ${rawText}
-Now output the questions exactly in that format:
+
+**Formatted Output:**
 `;
-                return isArabic ? basePromptAr : basePromptEn;
-            }
+        return isArabic ? basePromptAr : basePromptEn;
+    }
+
             cleanFormattedText(t) {
                 if (!t) return '';
                 let s = t.trim();
