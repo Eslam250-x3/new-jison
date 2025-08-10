@@ -496,11 +496,10 @@
             // ***************************************************************
             // ** PARSING & AI LOGIC **
             // ***************************************************************
-         buildAdvancedFormattingPrompt(rawText) {
-        const isArabic = this.language === this.Language.ARABIC;
+            buildAdvancedFormattingPrompt(rawText) {
+                const isArabic = this.language === this.Language.ARABIC;
         
-        // --- دمجنا كل الأمثلة المفيدة من النسخة القديمة ---
-        const examples = `
+                const examples = `
 مثال MCQ (نجمة واحدة فقط):
 type: mcq
 [STEM]
@@ -545,8 +544,7 @@ type: string
 [ANSWER]
 x=3, y=2
 `;
-        // --- هذه هي النسخة النهائية والمُدمجة من التعليمات ---
-        const basePromptAr = `
+                const basePromptAr = `
 أنت مُنسّق أسئلة خبير ومساعد أكاديمي دقيق. مهمتك هي تحويل نص غير منظم إلى تنسيق منظم وموحد.
 
 **التعليمات الأساسية:**
@@ -580,8 +578,7 @@ ${rawText}
 
 **الناتج المنسق:**
 `;
-        // النسخة الإنجليزية بنفس التفاصيل
-        const basePromptEn = `
+                const basePromptEn = `
 You are an expert question formatter and a meticulous academic assistant. Your task is to convert unstructured text into a standardized, structured format.
 
 **Core Instructions:**
@@ -615,9 +612,8 @@ ${rawText}
 
 **Formatted Output:**
 `;
-        return isArabic ? basePromptAr : basePromptEn;
-    }
-
+                return isArabic ? basePromptAr : basePromptEn;
+            }
             cleanFormattedText(t) {
                 if (!t) return '';
                 let s = t.trim();
@@ -637,7 +633,6 @@ ${rawText}
                     .replace(/\\\(([\s\S]*?)\\\)/g, '`$1`');
             }
             
-            // [FIXED] Added the missing normalizeOneBlock and autoDetectTypeFromContent functions
             autoDetectTypeFromContent(block) {
                 const hasChoices = /\[CHOICES\]/i.test(block);
                 const hasAnswer = /\[ANSWER\]/i.test(block);
@@ -809,7 +804,6 @@ ${rawText}
                 const content = {};
                 const mainTags = ['STEM', 'CHOICES', 'ANSWER', 'GAPS', 'MATCHING_PAIRS'];
                 let remainingBlock = partBlock.trim();
-
                 const lines = remainingBlock.split('\n');
                 let contentStartIndex = 0;
                 for (let i = 0; i < lines.length; i++) {
@@ -823,7 +817,6 @@ ${rawText}
                     }
                 }
                 remainingBlock = lines.slice(contentStartIndex).join('\n');
-
                 const tagPositions = [];
                 mainTags.forEach(tag => {
                     const regex = new RegExp(`\\[${tag}\\]`, 'gi');
@@ -832,30 +825,23 @@ ${rawText}
                         tagPositions.push({ tag: tag, index: match.index });
                     }
                 });
-
                 tagPositions.sort((a, b) => a.index - b.index);
-                
                 for (let i = 0; i < tagPositions.length; i++) {
                     const currentTag = tagPositions[i];
                     const nextTag = tagPositions[i + 1];
-                    
                     const start = currentTag.index + `[${currentTag.tag}]`.length;
                     const end = nextTag ? nextTag.index : remainingBlock.length;
-                    
                     const tagContent = remainingBlock.substring(start, end).trim();
                     content[currentTag.tag] = tagContent;
                 }
-
                 const part = {
-                    // FIX: Removed .toLowerCase() to preserve casing for types like "gapText"
                     type: (partMetadata.type || globalMetadata.type || this.QuestionType.UNKNOWN),
                     stem: content.STEM || '',
                     metadata: partMetadata
                 };
-
                 this._processTaggedContent(part, content);
                 return part;
-            },
+            }
             _processTaggedContent(part, content) {
                 const stripBullet = (s) => s.replace(/^\s*(?:\d+[.)]|[A-Za-z\u0621-\u064A][.)]|[-•])\s+/, '');
                 switch(part.type) {
@@ -908,7 +894,6 @@ ${rawText}
                     }
                 }
             }
-            
             _parsePartSimple(text, metadata) {
                 const stripBullet = (s) => s.replace(/^\s*(?:\d+[.)]|[A-Za-z\u0621-\u064A][.)]|[-•])\s+/, '');
                 const type = (metadata.type || this.activeQuestionType).toLowerCase();
@@ -926,7 +911,6 @@ ${rawText}
                 }
                 part.stem = lines[0].trim();
                 const remainingLines = lines.slice(1);
-
                 switch(type) {
                     case this.QuestionType.OQ:
                     case this.QuestionType.MCQ:
@@ -952,7 +936,6 @@ ${rawText}
                     case this.QuestionType.FRQ_AI:
                         part.answer = remainingLines.join('\n').trim();
                         break;
-                    
                     case this.QuestionType.GAP_TEXT: {
                         part.answers = remainingLines.map((val, i) => ({ value: val, order: i + 1 }));
                         break;
@@ -1070,7 +1053,7 @@ ${rawText}
                     type: this.questionTypeConfigs[part.type]?.jsonType || part.type,
                     subtype: null,
                     standalone: false,
-                    stem: this.processTextForHtml(part.stem, lang),
+                    stem: this.processTextForHtml(part.stem, lang)
                 };
                 switch (part.type) {
                     case this.QuestionType.MCQ:
@@ -1134,18 +1117,15 @@ ${rawText}
                 });
                 return { choices };
             }
-               _transformGapTextPart(part, lang) {
+            _transformGapTextPart(part, lang) {
                 const stem_html_gap = '<span data-node-type="blank-line" data-node-variation="gap"> </span>';
-                // FIX: Updated regex to replace both [BLANK] and underscores (3 or more)
                 const processedStem = (part.stem || '').replace(/\[BLANK\]|_{3,}/g, stem_html_gap);
-                
                 return {
                     gap_text_keys: (part.answers || []).map(ans => ({ value: ans.value, correct_order: ans.order })),
                     stem: this.processTextForHtml(processedStem, lang),
                     choices: []
                 };
-            },
-
+            }
             _transformStringPart(part, lang) {
                 const result = {
                     choices: null,
@@ -1191,19 +1171,19 @@ ${rawText}
             processTextForHtml(text, language) {
                 if (!text) return '';
                 const direction = language === this.Language.ARABIC ? ' dir="rtl"' : '';
-                const blankHtml = '<span data-node-type="blank-line" data-node-variation="space"> </span>';
-                text = text.replace(/_{5,}/g, blankHtml);
-            
-                // Split by backticked math content, keeping the delimiters
-                const parts = text.split(/(``[\s\S]*?``|`[\s\S]*?`)/);
+                
+                // This regex was updated to not consume the placeholder spans
+                const parts = text.split(/(``[\s\S]*?``|`[\s\S]*?`|<span data-node-type="blank-line" data-node-variation="gap"> <\/span>)/);
                 let finalHtmlContent = "";
-            
+                
                 for (const part of parts) {
                     if (!part) continue;
                     if (part.startsWith('``') && part.endsWith('``')) {
                         finalHtmlContent += this.createMathField(part.slice(2, -2), language, true);
                     } else if (part.startsWith('`') && part.endsWith('`')) {
                         finalHtmlContent += this.createMathField(part.slice(1, -1), language);
+                    } else if (part.includes('data-node-type="blank-line"')) {
+                        finalHtmlContent += part; // Add the placeholder span directly
                     } else {
                         finalHtmlContent += `<span style="white-space: pre-wrap;">${DOMPurify.sanitize(part)}</span>`;
                     }
@@ -1218,7 +1198,6 @@ ${rawText}
                     latexValue = this.convertToArabicLatex(latexValue);
                 }
                 const localeAttrs = isArabic ? ' locale="ar" lang="ar"' : ' locale="en"';
-                // Properly escape double quotes for the HTML attribute
                 const processedValue = latexValue.replace(/"/g, '&quot;');
                 return `<span class="LexicalTheme__math--inline" data-node-type="math" data-node-variation="inline"><math-field default-mode="inline-math" read-only="true" value="${processedValue}"${localeAttrs}></math-field></span>`;
             }
@@ -1236,7 +1215,6 @@ ${rawText}
                 previewContainer.innerHTML = '';
                 const placeholder = document.getElementById('preview-placeholder');
                 if (this.questions.length === 0) {
-                    // Create the placeholder if it doesn't exist
                     if (!placeholder) {
                         const newPlaceholder = document.createElement('div');
                         newPlaceholder.id = 'preview-placeholder';
