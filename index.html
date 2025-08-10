@@ -806,8 +806,11 @@ ${rawText}
             }
             _parsePartWithTags(partBlock, globalMetadata) {
                 const partMetadata = { ...globalMetadata };
-                let content = {};
-                const lines = partBlock.trim().split('\n');
+                const content = {};
+                const mainTags = ['STEM', 'CHOICES', 'ANSWER', 'GAPS', 'MATCHING_PAIRS'];
+                let remainingBlock = partBlock.trim();
+
+                const lines = remainingBlock.split('\n');
                 let contentStartIndex = 0;
                 for (let i = 0; i < lines.length; i++) {
                     const line = lines[i].trim();
@@ -815,31 +818,44 @@ ${rawText}
                     if (metaMatch && !line.startsWith('[')) {
                         partMetadata[metaMatch[1].trim().toLowerCase()] = metaMatch[2].trim();
                         contentStartIndex = i + 1;
-                    } else break;
-                }
-                const contentLinesStr = lines.slice(contentStartIndex).join('\n');
-                const tagRegex = /\[([A-Z_]+)\]/gi;
-                let result, lastIndex = 0, lastTag = null;
-                while ((result = tagRegex.exec(contentLinesStr)) !== null) {
-                    if (lastTag) {
-                        const tagContent = contentLinesStr.substring(lastIndex, result.index).trim();
-                        content[lastTag] = (content[lastTag] || "") + tagContent;
+                    } else {
+                        break;
                     }
-                    lastTag = result[1].toUpperCase();
-                    lastIndex = result.index + result[0].length;
                 }
-                if (lastTag) {
-                    const tagContent = contentLinesStr.substring(lastIndex).trim();
-                    content[lastTag] = (content[lastTag] || "") + tagContent;
+                remainingBlock = lines.slice(contentStartIndex).join('\n');
+
+                const tagPositions = [];
+                mainTags.forEach(tag => {
+                    const regex = new RegExp(`\\[${tag}\\]`, 'gi');
+                    let match;
+                    while ((match = regex.exec(remainingBlock)) != null) {
+                        tagPositions.push({ tag: tag, index: match.index });
+                    }
+                });
+
+                tagPositions.sort((a, b) => a.index - b.index);
+                
+                for (let i = 0; i < tagPositions.length; i++) {
+                    const currentTag = tagPositions[i];
+                    const nextTag = tagPositions[i + 1];
+                    
+                    const start = currentTag.index + `[${currentTag.tag}]`.length;
+                    const end = nextTag ? nextTag.index : remainingBlock.length;
+                    
+                    const tagContent = remainingBlock.substring(start, end).trim();
+                    content[currentTag.tag] = tagContent;
                 }
+
                 const part = {
-                    type: (partMetadata.type || globalMetadata.type || this.QuestionType.UNKNOWN).toLowerCase(),
+                    // FIX: Removed .toLowerCase() to preserve casing for types like "gapText"
+                    type: (partMetadata.type || globalMetadata.type || this.QuestionType.UNKNOWN),
                     stem: content.STEM || '',
                     metadata: partMetadata
                 };
+
                 this._processTaggedContent(part, content);
                 return part;
-            }
+            },
             _processTaggedContent(part, content) {
                 const stripBullet = (s) => s.replace(/^\s*(?:\d+[.)]|[A-Za-z\u0621-\u064A][.)]|[-•])\s+/, '');
                 switch(part.type) {
@@ -1118,14 +1134,18 @@ ${rawText}
                 });
                 return { choices };
             }
-            _transformGapTextPart(part, lang) {
+               _transformGapTextPart(part, lang) {
                 const stem_html_gap = '<span data-node-type="blank-line" data-node-variation="gap"> </span>';
+                // FIX: Updated regex to replace both [BLANK] and underscores (3 or more)
+                const processedStem = (part.stem || '').replace(/\[BLANK\]|_{3,}/g, stem_html_gap);
+                
                 return {
                     gap_text_keys: (part.answers || []).map(ans => ({ value: ans.value, correct_order: ans.order })),
-                    stem: this.processTextForHtml(part.stem.replace(/\[BLANK\]/g, stem_html_gap), lang),
+                    stem: this.processTextForHtml(processedStem, lang),
                     choices: []
                 };
-            }
+            },
+
             _transformStringPart(part, lang) {
                 const result = {
                     choices: null,
