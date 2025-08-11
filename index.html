@@ -1159,7 +1159,7 @@ ${rawText}
                 };
             }
             _transformInputBoxPart(part) {
-                const answer = { value: part.answer.value, constraints: { type: "integer" } };
+                const answer = { value: part.answer.value, constrains: { type: "integer" } };
                 if (part.answer.unit && part.answer.unit !== '') answer.unit = part.answer.unit;
                 return { choices: [], answer };
             }
