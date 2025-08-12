@@ -154,9 +154,9 @@
             min-width: 20px;
         }
         math-field:focus-within {
-             background-color: #eef2ff;
-             box-shadow: 0 0 0 2px #4f46e5;
-             outline: none;
+              background-color: #eef2ff;
+              box-shadow: 0 0 0 2px #4f46e5;
+              outline: none;
         }
         @media (max-width: 1200px) { .content { grid-template-columns: 1fr 1fr; } }
         @media (max-width: 768px) {
@@ -511,7 +511,7 @@
             // ***************************************************************
             buildAdvancedFormattingPrompt(rawText) {
                 const isArabic = this.language === this.Language.ARABIC;
-        
+            
                 const examples = `
 مثال MCQ (نجمة واحدة فقط):
 type: mcq
@@ -1272,8 +1272,8 @@ ${rawText}
                         }
                         break;
                     case 'answer': // For string, frq, etc.
-                         partToUpdate.answer = updateRawText(partToUpdate.answer);
-                         break;
+                          partToUpdate.answer = updateRawText(partToUpdate.answer);
+                          break;
                 }
                 
                 // Update the raw content block used for the "Edit" view
@@ -1630,27 +1630,52 @@ ${rawText}
                     this.displayResults();
                 }
             }
+            _formatCsvCell(value) {
+                if (value === null || value === undefined) {
+                    return '';
+                }
+                let stringValue = String(value);
+                // If the value contains a comma, a double quote, or a newline, it needs to be quoted.
+                if (/[",\n]/.test(stringValue)) {
+                    // Escape any existing double quotes by doubling them up.
+                    stringValue = stringValue.replace(/"/g, '""');
+                    // Wrap the entire string in double quotes.
+                    return `"${stringValue}"`;
+                }
+                // If no special characters, return the value as is.
+                return stringValue;
+            }
             generateCSVContent() {
                 const header = ['Question Id', 'Lang', 'Lesson Id', 'Attributes', 'Category', 'Dialect'];
-                if (this.csvData && this.csvData.length > 0) { return this.getCSVString(); }
-                const rows = this.questions.map((q, idx) => {
+                // Check if csvData is valid and matches the current number of questions
+                if (this.csvData && this.csvData.length === this.questions.length) {
+                    return this.getCSVString();
+                }
+
+                // If not, regenerate the data from scratch
+                const csvRowsData = this.questions.map((q, idx) => {
                     const transformedQ = this.transformToAdvancedFormat(q, idx);
                     const firstType = q.parts && q.parts.length > 0 ? (this.questionTypeConfigs[q.parts[0].type]?.jsonType || q.parts[0].type) : "";
-                    return `${transformedQ.metadata.id},"${transformedQ.metadata.language}","","${firstType}","lesson",""`;
+                    return [
+                        transformedQ.metadata.id,
+                        transformedQ.metadata.language,
+                        '', // Lesson Id placeholder
+                        firstType,
+                        transformedQ.metadata.category,
+                        Array.isArray(transformedQ.metadata.dialect) ? transformedQ.metadata.dialect[0] : transformedQ.metadata.dialect
+                    ];
                 });
+
+                const rows = csvRowsData.map(rowData =>
+                    rowData.map(cell => this._formatCsvCell(cell)).join(',')
+                );
+
                 return header.join(',') + '\n' + rows.join('\n');
             }
             getCSVString() {
                 const header = ['Question Id', 'Lang', 'Lesson Id', 'Attributes', 'Category', 'Dialect'];
                 const rows = this.csvData.map(row => {
-                    let rowStr = '';
-                    header.forEach((col, index) => {
-                        const value = row[col] || '';
-                        if (col === 'Question Id' && /^\d+$/.test(value)) rowStr += value;
-                        else rowStr += `"${value.toString().replace(/"/g, '""')}"`;
-                        if (index < header.length - 1) rowStr += ',';
-                    });
-                    return rowStr;
+                    return header.map(col => this._formatCsvCell(row[col])).join(',');
                 });
                 return header.join(',') + '\n' + rows.join('\n');
             }
