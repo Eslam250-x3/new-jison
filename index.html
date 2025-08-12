@@ -1061,12 +1061,18 @@ ${rawText}
                 };
             }
             _transformPart(part, lang, index) {
+                let processedStem = part.stem;
+                if ((part.type === this.QuestionType.MCQ || part.type === this.QuestionType.MRQ) && processedStem && processedStem.trim().endsWith('.')) {
+                    const spaceSpan = '<span data-node-type="blank-line" data-node-variation="space">&nbsp;</span>';
+                    const trimmedStem = processedStem.trim();
+                    processedStem = trimmedStem.slice(0, -1) + spaceSpan + '.';
+                }
                 const partJson = {
                     n: index + 1,
                     type: this.questionTypeConfigs[part.type]?.jsonType || part.type,
                     subtype: null,
                     standalone: false,
-                    stem: this.processTextForHtml(part.stem, lang)
+                    stem: this.processTextForHtml(processedStem, lang)
                 };
                 switch (part.type) {
                     case this.QuestionType.MCQ:
@@ -1181,24 +1187,21 @@ ${rawText}
                 this.logger.info("All data has been cleared.");
             }
             
-            // ::: MODIFICATION: Updated function signature :::
             processTextForHtml(text, language, questionId, partIndex, fieldType, choiceIndex = -1) {
                 if (!text) return '';
                 const direction = language === this.Language.ARABIC ? ' dir="rtl"' : '';
                 
-                const parts = text.split(/(``[\s\S]*?``|`[\s\S]*?`|<span data-node-type="blank-line" data-node-variation="gap"> <\/span>)/);
+                const parts = text.split(/(``[\s\S]*?``|`[\s\S]*?`|<span data-node-type="blank-line" data-node-variation="gap"> <\/span>|<span data-node-type="blank-line" data-node-variation="space">&nbsp;<\/span>)/);
                 let finalHtmlContent = "";
                 
                 for (const part of parts) {
                     if (!part) continue;
                     if (part.startsWith('``') && part.endsWith('``')) {
-                        // ::: MODIFICATION: Pass identifying data :::
                         finalHtmlContent += this.createMathField(part.slice(2, -2), language, true, questionId, partIndex, fieldType, choiceIndex);
                     } else if (part.startsWith('`') && part.endsWith('`')) {
-                        // ::: MODIFICATION: Pass identifying data :::
                         finalHtmlContent += this.createMathField(part.slice(1, -1), language, false, questionId, partIndex, fieldType, choiceIndex);
                     } else if (part.includes('data-node-type="blank-line"')) {
-                        finalHtmlContent += part; // Add the placeholder span directly
+                        finalHtmlContent += part;
                     } else {
                         finalHtmlContent += `<span style="white-space: pre-wrap;">${DOMPurify.sanitize(part)}</span>`;
                     }
@@ -1206,7 +1209,6 @@ ${rawText}
                 return `<p class="LexicalTheme__paragraph"${direction}>${finalHtmlContent}</p>`;
             }
             
-            // ::: MODIFICATION: Updated function signature and removed read-only :::
             createMathField(equation, language, forceEn = false, questionId, partIndex, fieldType, choiceIndex) {
                 const isArabic = language === this.Language.ARABIC && !forceEn;
                 let latexValue = equation.replace(/\[BLANK\]/g, '\\textBlank');
@@ -1216,17 +1218,14 @@ ${rawText}
                 const localeAttrs = isArabic ? ' locale="ar" lang="ar"' : ' locale="en"';
                 const processedValue = latexValue.replace(/"/g, '&quot;');
 
-                // ::: MODIFICATION: Add data attributes for identification :::
                 const dataAttrs = `data-question-id="${questionId}" 
                                    data-part-index="${partIndex}" 
                                    data-field-type="${fieldType}" 
                                    data-choice-index="${choiceIndex}"`;
                 
-                // ::: MODIFICATION: Removed read-only="true" :::
                 return `<span class="LexicalTheme__math--inline" data-node-type="math" data-node-variation="inline"><math-field ${dataAttrs} default-mode="inline-math" value="${processedValue}"${localeAttrs}></math-field></span>`;
             }
 
-            // ::: NEW METHOD: To handle live input from math fields :::
             handleMathFieldInput(event) {
                 const mathField = event.target;
                 const questionId = mathField.dataset.questionId;
@@ -1239,7 +1238,7 @@ ${rawText}
                 if (!question) return;
 
                 let partToUpdate;
-                if (partIndex === -1) { // -1 indicates the main statement
+                if (partIndex === -1) { 
                     partToUpdate = question;
                 } else {
                     partToUpdate = question.parts[partIndex];
@@ -1247,16 +1246,13 @@ ${rawText}
                 
                 if (!partToUpdate) return;
                 
-                // This is a simplified way to update the raw text.
-                // It finds the first math block and replaces its content.
-                // This might not be robust if a single text field has multiple equations.
                 const updateRawText = (originalText) => {
                     const match = originalText.match(/(`{1,2})([^`]+)\1/);
                     if (match) {
                         const delimiter = match[1];
                         return originalText.replace(match[0], `${delimiter}${newLatexValue}${delimiter}`);
                     }
-                    return originalText; // Return original if no math found
+                    return originalText;
                 };
 
                 switch (fieldType) {
@@ -1271,12 +1267,11 @@ ${rawText}
                            partToUpdate.choices[choiceIndex] = updateRawText(partToUpdate.choices[choiceIndex]);
                         }
                         break;
-                    case 'answer': // For string, frq, etc.
+                    case 'answer':
                           partToUpdate.answer = updateRawText(partToUpdate.answer);
                           break;
                 }
                 
-                // Update the raw content block used for the "Edit" view
                 if (question.parts[partIndex]) {
                     const part = question.parts[partIndex];
                     let newContentBlock = `[STEM]\n${part.stem}\n`;
@@ -1288,12 +1283,9 @@ ${rawText}
                      if (part.answer && (part.type === 'string' || part.type === 'frq')) {
                         newContentBlock += `\n[ANSWER]\n${part.answer}`;
                     }
-                    // Rebuild other types as needed...
                     question._contentBlock = newContentBlock;
                 }
 
-
-                // Refresh JSON output if it's visible
                 if (document.getElementById('jsonOutput').style.display === 'block') {
                     this.convertToJSON();
                 }
@@ -1347,19 +1339,16 @@ ${rawText}
                     <button class="action-btn delete-btn" title="${this.language === this.Language.ARABIC ? 'حذف' : 'Delete'}" aria-label="Delete">🗑️</button>
                 </div>`;
                 if (q.statement) {
-                    // ::: MODIFICATION: Pass identifying data :::
                     html += `<div class="statement-preview">${this.processTextForHtml(q.statement, lang, q.metadata.id, -1, 'statement')}</div>`;
                 }
                 q.parts.forEach((p, pIndex) => {
                     html += `<div class="part-preview">`;
                     html += `<div class="question-type-badge type-${p.type}">${this.questionTypeConfigs[p.type]?.label || p.type} | ID: ${questionIdText}</div>`;
-                    // ::: MODIFICATION: Pass identifying data :::
                     html += `<div>${this.processTextForHtml(p.stem, lang, q.metadata.id, pIndex, 'stem')}</div>`;
                     
                     if (p.type === 'oq' || p.type === 'mcq' || p.type === 'mrq') {
                         const correctAnswers = new Set(Array.isArray(p.answer) ? p.answer : [p.answer]);
                         html += (p.choices || []).map((choice, cIndex) =>
-                            // ::: MODIFICATION: Pass identifying data :::
                             `<div class="choice-item ${correctAnswers.has(cIndex) ? 'correct' : ''}">${this.processTextForHtml(choice, lang, q.metadata.id, pIndex, 'choice', cIndex)}</div>`
                         ).join('');
                     } else if (p.type === 'matching') {
@@ -1635,31 +1624,24 @@ ${rawText}
                     return '';
                 }
                 let stringValue = String(value);
-                // If the value contains a comma, a double quote, or a newline, it needs to be quoted.
                 if (/[",\n]/.test(stringValue)) {
-                    // Escape any existing double quotes by doubling them up.
                     stringValue = stringValue.replace(/"/g, '""');
-                    // Wrap the entire string in double quotes.
                     return `"${stringValue}"`;
                 }
-                // If no special characters, return the value as is.
                 return stringValue;
             }
             generateCSVContent() {
                 const header = ['Question Id', 'Lang', 'Lesson Id', 'Attributes', 'Category', 'Dialect'];
-                // Check if csvData is valid and matches the current number of questions
                 if (this.csvData && this.csvData.length === this.questions.length) {
                     return this.getCSVString();
                 }
-
-                // If not, regenerate the data from scratch
                 const csvRowsData = this.questions.map((q, idx) => {
                     const transformedQ = this.transformToAdvancedFormat(q, idx);
                     const firstType = q.parts && q.parts.length > 0 ? (this.questionTypeConfigs[q.parts[0].type]?.jsonType || q.parts[0].type) : "";
                     return [
                         transformedQ.metadata.id,
                         transformedQ.metadata.language,
-                        '', // Lesson Id placeholder
+                        '', 
                         firstType,
                         transformedQ.metadata.category,
                         Array.isArray(transformedQ.metadata.dialect) ? transformedQ.metadata.dialect[0] : transformedQ.metadata.dialect
