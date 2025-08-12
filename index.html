@@ -148,14 +148,9 @@
         #csvModal .hot-container { margin-bottom: 18px; width: 100%; }
         #csvModal .btn { min-width: 120px; }
         #csvModal .csv-warning { color: #dc2626; font-weight: bold; margin-bottom: 10px; }
+        /* NEW: Styles for Math Fields */
         math-field {
             border: 1px solid #ddd; padding: 2px 5px; border-radius: 4px; font-size: 1.1em; display: inline-block; background: #f9f9f9;
-            min-width: 20px;
-        }
-        math-field:focus-within {
-              background-color: #eef2ff;
-              box-shadow: 0 0 0 2px #4f46e5;
-              outline: none;
         }
         @media (max-width: 1200px) { .content { grid-template-columns: 1fr 1fr; } }
         @media (max-width: 768px) {
@@ -185,13 +180,6 @@
 استخدم الوسوم مثل [STEM] و [CHOICES] لتحديد أجزاء السؤال.
 افصل بين كل سؤال بـ ---
 "></textarea>
-                </div>
-                <!-- LaTeX Localization Checkbox -->
-                <div style="margin-top: 15px; padding: 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; text-align: center;">
-                  <input type="checkbox" id="arabicLatexCheckbox" name="arabicLatex" style="vertical-align: middle;">
-                  <label for="arabicLatexCheckbox" style="font-weight: bold; color: #4b5563; cursor: pointer; vertical-align: middle;">
-                    ⚙️ تفعيل التعريب المتقدم لـ LaTeX
-                  </label>
                 </div>
                 <div class="api-key-section">
                     <input type="password" id="apiKey" placeholder="🔑 أدخل مفتاح Gemini API هنا (اختياري)">
@@ -317,14 +305,15 @@
                         sourceId: 182136230818,
                         lang: 'ar'
                     },
+                    flags: {
+                        convertArabicLatex: false
+                    },
                     ARABIC_LATEX_MAP: {
-                        "F(x)": "\\dotlessqaft (\\seen)", "Q'": "\\dotlessnoont \\prime",
-                        "A": "\\alt{\\alef}", "B": "\\beh", "C": "\\jeemi", "D": "\\dal",
-                        "E": "\\hehi", "F": "\\waw", "K": "\\kaf", "L": "\\lam",
-                        "M": "\\meem", "N": "\\tah", "O": "\\waw", "Q": "\\dotlessnoont",
-                        "R": "\\haht", "X": "\\seent", "Y": "\\sadt", "Z": "\\sadt",
-                        "n": "\\noon", "r": "\\aint", "s": "\\feh", "x": "\\seen",
-                        "y": "\\sad", "z": "\\ain"
+                        "F(x)": "\\dotlessqaft (\\seen)", "Q'": "\\dotlessnoont \\prime", 'N': '\\tah', 'Z': '\\sadt',
+                        'Q': '\\dotlessnoont', 'X': '\\seent', 'Y': '\\sadt', 'x': '\\seen', 'y': '\\sad',
+                        'z': '\\ain', 'A': '\\alt{\\alef}', 'B': '\\beh', 'C': '\\jeemi', 'D': '\\dal',
+                        'E': '\\hehi', 'F': '\\waw', 'M': '\\meem', 'n': '\\noon', 'K': '\\kaf',
+                        'L': '\\lam', 's': '\\feh', 'O': '\\waw', 'R': '\\haht', 'r': '\\aint',
                     }
                 });
                 // --- 2. ENUMS & CONSTANTS ---
@@ -365,7 +354,7 @@
                     ALLOW_DATA_ATTR: true,
                     ALLOW_CUSTOM_ELEMENTS: true,
                     ADD_TAGS: ['math-field','span','p','div','strong','ul','li', 'h4', 'h5', 'br', 'b'],
-                    ADD_ATTR: ['value','locale','lang','class','dir','style','data-node-type','data-node-variation', 'title', 'aria-label', 'data-question-id', 'data-part-index', 'data-field-type', 'data-choice-index', 'data-math-index', 'default-mode']
+                    ADD_ATTR: ['value','locale','lang','class','dir','style','data-node-type','data-node-variation', 'title', 'aria-label']
                 });
                 el.innerHTML = safe;
             }
@@ -413,13 +402,6 @@
                         this.saveEditQuestion(questionId);
                     } else if (target.classList.contains('btn-cancel-edit')) {
                         this.cancelEditQuestion(questionId);
-                    }
-                });
-                
-                // Listen for live input on math fields
-                document.getElementById('questionsPreview').addEventListener('input', (e) => {
-                    if (e.target.tagName.toLowerCase() === 'math-field') {
-                        this.handleMathFieldInput(e);
                     }
                 });
             }
@@ -516,7 +498,7 @@
             // ***************************************************************
             buildAdvancedFormattingPrompt(rawText) {
                 const isArabic = this.language === this.Language.ARABIC;
-            
+        
                 const examples = `
 مثال MCQ (نجمة واحدة فقط):
 type: mcq
@@ -1164,7 +1146,7 @@ ${rawText}
                 };
             }
             _transformInputBoxPart(part) {
-                const answer = { value: part.answer.value, constrains: { type: "integer" } };
+                const answer = { value: part.answer.value, constraints: { type: "integer" } };
                 if (part.answer.unit && part.answer.unit !== '') answer.unit = part.answer.unit;
                 return { choices: [], answer };
             }
@@ -1186,20 +1168,20 @@ ${rawText}
                 this.logger.info("All data has been cleared.");
             }
             
-            processTextForHtml(text, language, questionId, partIndex, fieldType, choiceIndex = -1) {
-                if (typeof text !== 'string') return '';
+            processTextForHtml(text, language) {
+                if (!text) return '';
                 const direction = language === this.Language.ARABIC ? ' dir="rtl"' : '';
                 
+                // This regex was updated to not consume the placeholder spans
                 const parts = text.split(/(``[\s\S]*?``|`[\s\S]*?`|<span data-node-type="blank-line" data-node-variation="gap"> <\/span>)/);
                 let finalHtmlContent = "";
-                let mathIndex = 0;
                 
                 for (const part of parts) {
                     if (!part) continue;
                     if (part.startsWith('``') && part.endsWith('``')) {
-                        finalHtmlContent += this.createMathField(part.slice(2, -2), language, true, questionId, partIndex, fieldType, choiceIndex, mathIndex++);
+                        finalHtmlContent += this.createMathField(part.slice(2, -2), language, true);
                     } else if (part.startsWith('`') && part.endsWith('`')) {
-                        finalHtmlContent += this.createMathField(part.slice(1, -1), language, false, questionId, partIndex, fieldType, choiceIndex, mathIndex++);
+                        finalHtmlContent += this.createMathField(part.slice(1, -1), language);
                     } else if (part.includes('data-node-type="blank-line"')) {
                         finalHtmlContent += part; // Add the placeholder span directly
                     } else {
@@ -1209,134 +1191,24 @@ ${rawText}
                 return `<p class="LexicalTheme__paragraph"${direction}>${finalHtmlContent}</p>`;
             }
             
-            createMathField(equation, language, forceEn = false, questionId, partIndex, fieldType, choiceIndex, mathIndex) {
+            createMathField(equation, language, forceEn = false) {
                 const isArabic = language === this.Language.ARABIC && !forceEn;
                 let latexValue = equation.replace(/\[BLANK\]/g, '\\textBlank');
-
-                const arabicLatexCheckbox = document.getElementById('arabicLatexCheckbox');
-                if (isArabic && arabicLatexCheckbox && arabicLatexCheckbox.checked) {
+                if (isArabic && this.config.flags.convertArabicLatex) {
                     latexValue = this.convertToArabicLatex(latexValue);
                 }
-                
                 const localeAttrs = isArabic ? ' locale="ar" lang="ar"' : ' locale="en"';
                 const processedValue = latexValue.replace(/"/g, '&quot;');
-
-                const dataAttrs = `data-question-id="${questionId}" 
-                                   data-part-index="${partIndex}" 
-                                   data-field-type="${fieldType}" 
-                                   data-choice-index="${choiceIndex}"
-                                   data-math-index="${mathIndex}"`;
-                
-                return `<span class="LexicalTheme__math--inline" data-node-type="math" data-node-variation="inline"><math-field ${dataAttrs} default-mode="inline-math" value="${processedValue}"${localeAttrs}></math-field></span>`;
+                return `<span class="LexicalTheme__math--inline" data-node-type="math" data-node-variation="inline"><math-field default-mode="inline-math" read-only="true" value="${processedValue}"${localeAttrs}></math-field></span>`;
             }
-
-            handleMathFieldInput(event) {
-                const mathField = event.target;
-                const { questionId, partIndex, fieldType, choiceIndex, mathIndex } = mathField.dataset;
-                const newLatexValue = mathField.value;
-
-                const question = this.questions.find(q => q.metadata.id === questionId);
-                if (!question) return;
-
-                let targetObject;
-                let propertyToUpdate;
-
-                if (parseInt(partIndex, 10) === -1) { // Main statement
-                    targetObject = question;
-                    propertyToUpdate = 'statement';
-                } else {
-                    const part = question.parts[parseInt(partIndex, 10)];
-                    if (!part) return;
-
-                    switch (fieldType) {
-                        case 'stem':
-                            targetObject = part;
-                            propertyToUpdate = 'stem';
-                            break;
-                        case 'choice':
-                            if (part.choices && typeof part.choices[parseInt(choiceIndex, 10)] !== 'undefined') {
-                                targetObject = part.choices;
-                                propertyToUpdate = parseInt(choiceIndex, 10);
-                            }
-                            break;
-                        case 'answer':
-                            targetObject = part;
-                            propertyToUpdate = 'answer';
-                            break;
-                        // Add cases for group1, group2, gap answers if they can contain math
-                        default:
-                            return;
-                    }
-                }
-
-                if (!targetObject || typeof propertyToUpdate === 'undefined') return;
-
-                const originalText = targetObject[propertyToUpdate];
-                if (typeof originalText !== 'string') return;
-
-                const mathRegex = /(``[\s\S]*?``|`[\s\S]*?`)/g;
-                const matches = Array.from(originalText.matchAll(mathRegex));
-                const targetMatch = matches[parseInt(mathIndex, 10)];
-
-                if (targetMatch) {
-                    const delimiter = targetMatch[0].startsWith('``') ? '``' : '`';
-                    const newMathBlock = `${delimiter}${newLatexValue}${delimiter}`;
-                    const startIndex = targetMatch.index;
-                    const endIndex = startIndex + targetMatch[0].length;
-                    const newRawText = originalText.substring(0, startIndex) + newMathBlock + originalText.substring(endIndex);
-                    
-                    targetObject[propertyToUpdate] = newRawText;
-
-                    this.rebuildContentBlock(question);
-                    
-                    if (document.getElementById('jsonOutput').style.display === 'block') {
-                        this.convertToJSON();
-                    }
-                    this.logger.info(`Updated math field for Q:${questionId}, Part:${partIndex}, Field:${propertyToUpdate}`);
-                }
-            }
-
-            rebuildContentBlock(question) {
-                let newContent = '';
-                if(question.statement) {
-                    newContent += `[STATEMENT]\n${question.statement}\n`;
-                }
-                question.parts.forEach(part => {
-                    if(question.statement) {
-                        newContent += '[PART]\n';
-                    }
-                    newContent += `[STEM]\n${part.stem}\n`;
-                    if (part.choices && part.choices.length > 0) {
-                        const correctAnswers = new Set(Array.isArray(part.answer) ? part.answer : [part.answer]);
-                        const choicesText = part.choices.map((c, i) => `${correctAnswers.has(i) ? '*' : '-'} ${c}`).join('\n');
-                        newContent += `[CHOICES]\n${choicesText}\n`;
-                    }
-                    if (part.answer && (part.type === 'string' || part.type === 'frq' || part.type === 'frq_ai')) {
-                        newContent += `[ANSWER]\n${part.answer}\n`;
-                    }
-                    if (part.pairs && part.pairs.length > 0) {
-                        newContent += `[MATCHING_PAIRS]\n${part.pairs.map(p => p.join(' | ')).join('\n')}\n`;
-                    }
-                     if (part.answers && part.answers.length > 0) {
-                        newContent += `[GAPS]\n${part.answers.map(a => a.value).join('\n')}\n`;
-                    }
-                    if (part.answer && part.type === 'input_box') {
-                        newContent += `[ANSWER]\n${part.answer.value || ''}${part.answer.unit ? ' | ' + part.answer.unit : ''}\n`;
-                    }
-                });
-                question._contentBlock = newContent.trim();
-            }
-
             convertToArabicLatex(equation) {
-              let translatedEquation = equation;
-              const sortedKeys = Object.keys(this.config.ARABIC_LATEX_MAP).sort((a, b) => b.length - a.length);
-
-              sortedKeys.forEach(key => {
-                const regex = new RegExp(key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
-                translatedEquation = translatedEquation.replace(regex, this.config.ARABIC_LATEX_MAP[key]);
-              });
-
-              return translatedEquation;
+                const commands = equation.match(/\\\w+/g) || [];
+                commands.forEach((command, i) => { equation = equation.replace(command, `__CMD_PLACEHOLDER_${i}__`); });
+                const parts = equation.split(' ');
+                const processedParts = parts.map(part => this.config.ARABIC_LATEX_MAP[part] || part);
+                equation = processedParts.join(' ');
+                commands.forEach((command, i) => { equation = equation.replace(`__CMD_PLACEHOLDER_${i}__`, command); });
+                return equation;
             }
             displayResults() {
                 const previewContainer = document.getElementById('questionsPreview');
@@ -1375,26 +1247,25 @@ ${rawText}
                     <button class="action-btn delete-btn" title="${this.language === this.Language.ARABIC ? 'حذف' : 'Delete'}" aria-label="Delete">🗑️</button>
                 </div>`;
                 if (q.statement) {
-                    html += `<div class="statement-preview">${this.processTextForHtml(q.statement, lang, q.metadata.id, -1, 'statement')}</div>`;
+                    html += `<div class="statement-preview">${this.processTextForHtml(q.statement, lang)}</div>`;
                 }
-                q.parts.forEach((p, pIndex) => {
+                q.parts.forEach((p) => {
                     html += `<div class="part-preview">`;
                     html += `<div class="question-type-badge type-${p.type}">${this.questionTypeConfigs[p.type]?.label || p.type} | ID: ${questionIdText}</div>`;
-                    html += `<div>${this.processTextForHtml(p.stem, lang, q.metadata.id, pIndex, 'stem')}</div>`;
-                    
+                    html += `<div>${this.processTextForHtml(p.stem, lang)}</div>`;
                     if (p.type === 'oq' || p.type === 'mcq' || p.type === 'mrq') {
                         const correctAnswers = new Set(Array.isArray(p.answer) ? p.answer : [p.answer]);
-                        html += (p.choices || []).map((choice, cIndex) =>
-                            `<div class="choice-item ${correctAnswers.has(cIndex) ? 'correct' : ''}">${this.processTextForHtml(choice, lang, q.metadata.id, pIndex, 'choice', cIndex)}</div>`
+                        html += (p.choices || []).map((choice, i) =>
+                            `<div class="choice-item ${correctAnswers.has(i) ? 'correct' : ''}">${this.processTextForHtml(choice, lang)}</div>`
                         ).join('');
                     } else if (p.type === 'matching') {
-                        let g1Html = (p.group1 || []).map((item, i) => `<div class="matching-item">${i+1}. ${this.processTextForHtml(item, lang, q.metadata.id, pIndex, 'group1', i)}</div>`).join('');
-                        let g2Html = (p.group2 || []).map((item, i) => `<div class="matching-item">${String.fromCharCode(65 + i)}. ${this.processTextForHtml(item, lang, q.metadata.id, pIndex, 'group2', i)}</div>`).join('');
+                        let g1Html = (p.group1 || []).map((item, i) => `<div class="matching-item">${i+1}. ${this.processTextForHtml(item, lang)}</div>`).join('');
+                        let g2Html = (p.group2 || []).map((item, i) => `<div class="matching-item">${String.fromCharCode(65 + i)}. ${this.processTextForHtml(item, lang)}</div>`).join('');
                         html += `<div class="matching-preview"><div class="matching-column"><strong>${this.language === this.Language.ARABIC ? 'القائمة أ' : 'List A'}</strong>${g1Html}</div><div class="matching-column"><strong>${this.language === this.Language.ARABIC ? 'القائمة ب' : 'List B'}</strong>${g2Html}</div></div>`;
                     } else if (p.type === 'string' || p.type === 'frq' || p.type === 'frq_ai') {
-                        html += `<div class="choice-item correct"><strong>${this.language === this.Language.ARABIC ? 'الإجابة:' : 'Answer:'}</strong> ${this.processTextForHtml(p.answer, lang, q.metadata.id, pIndex, 'answer')}</div>`;
+                        html += `<div class="choice-item correct"><strong>${this.language === this.Language.ARABIC ? 'الإجابة:' : 'Answer:'}</strong> ${this.processTextForHtml(p.answer, lang)}</div>`;
                     } else if (p.type === 'gapText') {
-                        html += `<div class="gapped-text-answers"><strong>${this.language === this.Language.ARABIC ? 'الإجابات بالترتيب:' : 'Answers in order:'}</strong><ul>${(p.answers || []).map((ans, aIndex) => (ans && ans.value) ? `<li>${this.processTextForHtml(ans.value, lang, q.metadata.id, pIndex, 'gap', aIndex)}</li>` : '').join('')}</ul></div>`;
+                        html += `<div class="gapped-text-answers"><strong>${this.language === this.Language.ARABIC ? 'الإجابات بالترتيب:' : 'Answers in order:'}</strong><ul>${(p.answers || []).map(ans => (ans && ans.value) ? `<li>${this.processTextForHtml(ans.value, lang)}</li>` : '').join('')}</ul></div>`;
                     } else if (p.type === 'input_box') {
                         if (p.answer && typeof p.answer.value !== 'undefined') {
                             html += `<div class="choice-item correct"><strong>${this.language === this.Language.ARABIC ? 'الإجابة:' : 'Answer:'}</strong> ${p.answer.value} ${p.answer.unit || ''}</div>`;
