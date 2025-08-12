@@ -381,6 +381,33 @@
                 document.getElementById('customizeBtn').addEventListener('click', () => this.openCustomizeModal());
                 document.getElementById('customize-modal-close-btn').addEventListener('click', () => this.closeCustomizeModal());
                 document.getElementById('customize-save-btn').addEventListener('click', () => this.saveCustomization());
+
+                /**
+         * Parses a single line of a CSV string into an array of fields.
+         * Handles quoted fields containing commas.
+         * @param {string} text The single CSV line to parse.
+         * @returns {string[]} An array of the fields.
+         */
+        parseCsvLine(text) {
+            const result = [];
+            let current = '';
+            let inQuotes = false;
+            // Add a comma at the end to ensure the last field is captured
+            const line = text + ','; 
+
+            for (const char of line) {
+                if (char === '"') {
+                    inQuotes = !inQuotes; // Toggle the 'inQuotes' state
+                } else if (char === ',' && !inQuotes) {
+                    result.push(current); // End of a field
+                    current = ''; // Reset for the next field
+                } else {
+                    current += char; // Add character to the current field
+                }
+            }
+            return result;
+        }
+                
                 // Modal ESC close
                 document.addEventListener('keydown', (e) => {
                     if (e.key === 'Escape') {
