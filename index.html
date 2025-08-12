@@ -136,17 +136,17 @@
         .message .close-x { position: absolute; top: 6px; left: 8px; cursor: pointer; font-weight: bold; opacity: .6; }
         @keyframes slideIn { from { transform: translateY(-50px) translateX(-50%); opacity: 0; } to { transform: translateY(0) translateX(-50%); opacity: 1; } }
         @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; transform: translateY(-20px) translateX(-50%); } }
-        #csvModalBg {
+        #csvModalBg, #mappedIdModalBg, #aiTemplateModalBg {
             display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
             background: rgba(0,0,0,0.25); z-index: 3000; align-items: center; justify-content: center;
         }
-        #csvModal {
+        #csvModal, #mappedIdModal, #aiTemplateModal {
             background: white; border-radius: 16px; max-width: 1200px; width: 95vw; padding: 32px 24px;
             box-shadow: 0 8px 32px rgba(0,0,0,0.15); position: relative; min-height: 600px; min-width: 900px;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
         }
-        #csvModal .hot-container { margin-bottom: 18px; width: 100%; }
-        #csvModal .btn { min-width: 120px; }
+        #csvModal .hot-container, #mappedIdModal .hot-container, #aiTemplateModal .hot-container { margin-bottom: 18px; width: 100%; }
+        #csvModal .btn, #mappedIdModal .btn, #aiTemplateModal .btn { min-width: 120px; }
         #csvModal .csv-warning { color: #dc2626; font-weight: bold; margin-bottom: 10px; }
         /* NEW: Styles for Math Fields */
         math-field {
@@ -274,11 +274,13 @@
                     <option value="Modern_standard" selected>Modern_standard</option>
                 </select>
             </div>
-            <button id="customize-save-btn" class="btn btn-primary" style="width:100%;">حفظ</button>
+            <button id="translatedQuestionBtn" class="btn btn-secondary" style="width:100%; margin-top: 10px;">Translated Question</button>
+            <button id="aiTemplateBtn" class="btn btn-secondary" style="width:100%; margin-top: 10px;">AI Template ID</button>
+            <button id="customize-save-btn" class="btn btn-primary" style="width:100%; margin-top: 10px;">حفظ</button>
         </div>
     </div>
     <!-- Handsontable CSV Modal -->
-    <div id="csvModalBg" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="csv-title">
+    <div id="csvModalBg" role="dialog" aria-modal="true" aria-labelledby="csv-title">
         <div id="csvModal">
             <button id="csv-modal-close-btn" style="position:absolute; top:12px; left:12px; background:none; border:none; font-size:1.5em; cursor:pointer;" aria-label="إغلاق">×</button>
             <h2 id="csv-title" style="text-align:center; margin-bottom:18px; color:#4f46e5;">CSV Editor</h2>
@@ -287,6 +289,30 @@
             <div style="display:flex; gap:10px; justify-content:center; margin-top:18px;">
                 <button id="csv-save-btn" class="btn btn-success">💾 حفظ</button>
                 <button id="csv-close-btn" class="btn btn-secondary">❌ إغلاق</button>
+            </div>
+        </div>
+    </div>
+    <!-- Mapped ID Modal -->
+    <div id="mappedIdModalBg" role="dialog" aria-modal="true" aria-labelledby="mapped-id-title">
+        <div id="mappedIdModal">
+            <button id="mapped-id-modal-close-btn" style="position:absolute; top:12px; left:12px; background:none; border:none; font-size:1.5em; cursor:pointer;" aria-label="إغلاق">×</button>
+            <h2 id="mapped-id-title" style="text-align:center; margin-bottom:18px; color:#4f46e5;">Map Translated Question IDs</h2>
+            <div id="hotMappedIdTable" class="hot-container"></div>
+            <div style="display:flex; gap:10px; justify-content:center; margin-top:18px;">
+                <button id="mapped-id-save-btn" class="btn btn-success">💾 حفظ</button>
+                <button id="mapped-id-close-btn" class="btn btn-secondary">❌ إغلاق</button>
+            </div>
+        </div>
+    </div>
+    <!-- AI Template ID Modal -->
+    <div id="aiTemplateModalBg" role="dialog" aria-modal="true" aria-labelledby="ai-template-title">
+        <div id="aiTemplateModal">
+            <button id="ai-template-modal-close-btn" style="position:absolute; top:12px; left:12px; background:none; border:none; font-size:1.5em; cursor:pointer;" aria-label="إغلاق">×</button>
+            <h2 id="ai-template-title" style="text-align:center; margin-bottom:18px; color:#4f46e5;">Set AI Template IDs</h2>
+            <div id="hotAiTemplateTable" class="hot-container"></div>
+            <div style="display:flex; gap:10px; justify-content:center; margin-top:18px;">
+                <button id="ai-template-save-btn" class="btn btn-success">💾 حفظ</button>
+                <button id="ai-template-close-btn" class="btn btn-secondary">❌ إغلاق</button>
             </div>
         </div>
     </div>
@@ -343,6 +369,8 @@
                 this.apiKey = '';
                 this.csvData = [];
                 this.hotInstance = null;
+                this.mappedIdHotInstance = null;
+                this.aiTemplateHotInstance = null;
                 this.language = this.config.defaults.lang;
                 this.aiAbortController = null;
                 // --- 5. APP BOOTSTRAP ---
@@ -384,14 +412,30 @@
                 document.getElementById('csv-save-btn').addEventListener('click', () => this.saveCSVData());
                 document.getElementById('csv-close-btn').addEventListener('click', () => this.closeCSVModal());
                 document.getElementById('apiKey').addEventListener('input', () => this.saveApiKey());
+                // Customize Modal Events
                 document.getElementById('customizeBtn').addEventListener('click', () => this.openCustomizeModal());
                 document.getElementById('customize-modal-close-btn').addEventListener('click', () => this.closeCustomizeModal());
                 document.getElementById('customize-save-btn').addEventListener('click', () => this.saveCustomization());
+                document.getElementById('translatedQuestionBtn').addEventListener('click', () => this.openMappedIdModal());
+                document.getElementById('aiTemplateBtn').addEventListener('click', () => this.openAiTemplateModal());
+                
+                // Mapped ID Modal Events
+                document.getElementById('mapped-id-modal-close-btn').addEventListener('click', () => this.closeMappedIdModal());
+                document.getElementById('mapped-id-save-btn').addEventListener('click', () => this.saveMappedIdData());
+                document.getElementById('mapped-id-close-btn').addEventListener('click', () => this.closeMappedIdModal());
+
+                // AI Template ID Modal Events
+                document.getElementById('ai-template-modal-close-btn').addEventListener('click', () => this.closeAiTemplateModal());
+                document.getElementById('ai-template-save-btn').addEventListener('click', () => this.saveAiTemplateData());
+                document.getElementById('ai-template-close-btn').addEventListener('click', () => this.closeAiTemplateModal());
+
                 // Modal ESC close
                 document.addEventListener('keydown', (e) => {
                     if (e.key === 'Escape') {
                         if (document.getElementById('csvModalBg').style.display === 'flex') this.closeCSVModal();
                         if (document.getElementById('customizeModal').style.display === 'flex') this.closeCustomizeModal();
+                        if (document.getElementById('mappedIdModalBg').style.display === 'flex') this.closeMappedIdModal();
+                        if (document.getElementById('aiTemplateModalBg').style.display === 'flex') this.closeAiTemplateModal();
                     }
                 });
                 document.getElementById('questionsPreview').addEventListener('click', (event) => {
@@ -411,7 +455,6 @@
                     }
                 });
                 
-                // ::: MODIFICATION: Listen for live input on math fields :::
                 document.getElementById('questionsPreview').addEventListener('input', (e) => {
                     if (e.target.tagName.toLowerCase() === 'math-field') {
                         this.handleMathFieldInput(e);
@@ -1018,6 +1061,27 @@ ${rawText}
                     this.showMessage(this.language === this.Language.ARABIC ? 'لا توجد أسئلة لتحويلها.' : 'No questions to convert.', 'warning');
                     return;
                 }
+                // Validation check for empty choices and required AI template IDs
+                for (let i = 0; i < this.questions.length; i++) {
+                    const q = this.questions[i];
+                    for (let j = 0; j < q.parts.length; j++) {
+                        const p = q.parts[j];
+                        const needsChoices = [this.QuestionType.OQ, this.QuestionType.MCQ, this.QuestionType.MRQ].includes(p.type);
+                        if (needsChoices && (!p.choices || p.choices.length === 0)) {
+                            const errorMsg = `Question ${i + 1}, Part ${j + 1} (${p.type}) must have choices.`;
+                            const errorMsgAr = `السؤال ${i + 1}, الجزء ${j + 1} (من نوع ${p.type}) يجب أن يحتوي على اختيارات.`;
+                            this.showMessage(this.language === this.Language.ARABIC ? errorMsgAr : errorMsg, 'error');
+                            return; // Stop the conversion
+                        }
+                        if (p.type === this.QuestionType.FRQ_AI && !p.metadata.ai_template_id) {
+                             const errorMsg = `Question ${i + 1}, Part ${j + 1} (frq_ai) requires an AI Template ID.`;
+                             const errorMsgAr = `السؤال ${i + 1}, الجزء ${j + 1} (من نوع frq_ai) يتطلب معرف قالب AI.`;
+                             this.showMessage(this.language === this.Language.ARABIC ? errorMsgAr : errorMsg, 'error');
+                             return;
+                        }
+                    }
+                }
+
                 const advancedFormatQuestions = this.questions.map((q, index) => this.transformToAdvancedFormat(q, index));
                 const jsonOutput = document.getElementById('jsonOutput');
                 this.jsonForExport = JSON.stringify(advancedFormatQuestions.length === 1 ? advancedFormatQuestions[0] : advancedFormatQuestions, null, 2);
@@ -1031,17 +1095,24 @@ ${rawText}
             }
             transformToAdvancedFormat(question, index) {
                 const meta = question.metadata;
-                const lang = meta.language || this.customization.lang;
                 const csvRow = this.csvData[index];
-                let finalId = (csvRow && csvRow['Question Id']) ? parseInt(csvRow['Question Id'], 10) : (parseInt(meta.id, 10) || (Date.now() + index));
-                let finalMappedId = parseInt(meta.mapped_id, 10) || finalId;
-                if (lang === this.Language.ARABIC && meta.mapped_id) {
+
+                let finalId = (csvRow && csvRow['Question Id'])
+                                ? parseInt(csvRow['Question Id'], 10)
+                                : (parseInt(meta.id, 10) || (Date.now() + index));
+
+                let finalMappedId = meta.mapped_id ? parseInt(meta.mapped_id, 10) : null;
+                
+                // Python script's logic for swapping IDs for Arabic questions
+                if ((meta.language || this.customization.lang) === this.Language.ARABIC && meta.mapped_id) {
+                    finalMappedId = finalId;
                     finalId = parseInt(meta.mapped_id, 10);
-                    finalMappedId = parseInt(meta.id, 10);
                 }
+
+
                 return {
-                    parts: question.parts.map((p, partIndex) => this._transformPart(p, lang, partIndex)),
-                    statement: question.statement ? this.processTextForHtml(question.statement, lang) : null,
+                    parts: question.parts.map((p, partIndex) => this._transformPart(p, meta, partIndex)),
+                    statement: question.statement ? this.processTextForHtml(question.statement, meta.language || this.customization.lang) : null,
                     instance_number: 1,
                     metadata: {
                         id: finalId,
@@ -1060,7 +1131,8 @@ ${rawText}
                     }
                 };
             }
-            _transformPart(part, lang, index) {
+            _transformPart(part, globalMetadata, index) {
+                const lang = globalMetadata.language || this.customization.lang;
                 let processedStem = part.stem;
                 if ((part.type === this.QuestionType.MCQ || part.type === this.QuestionType.MRQ) && processedStem && processedStem.trim().endsWith('.')) {
                     const spaceSpan = '<span data-node-type="blank-line" data-node-variation="space">&nbsp;</span>';
@@ -1089,13 +1161,13 @@ ${rawText}
                         Object.assign(partJson, this._transformGapTextPart(part, lang));
                         break;
                     case this.QuestionType.STRING:
-                        Object.assign(partJson, this._transformStringPart(part, lang));
+                        Object.assign(partJson, this._transformStringPart(part, globalMetadata, lang));
                         break;
                     case this.QuestionType.FRQ:
                         Object.assign(partJson, this._transformFRQPart(part, lang));
                         break;
                     case this.QuestionType.FRQ_AI:
-                        Object.assign(partJson, this._transformFRQ_AIPart(part, lang));
+                        Object.assign(partJson, this._transformFRQ_AIPart(part, globalMetadata, lang));
                         break;
                     case this.QuestionType.INPUT_BOX:
                         Object.assign(partJson, this._transformInputBoxPart(part));
@@ -1145,24 +1217,30 @@ ${rawText}
                     choices: []
                 };
             }
-            _transformStringPart(part, lang) {
+            _transformStringPart(part, globalMetadata, lang) {
                 const result = {
                     choices: null,
                     answer: [this.processTextForHtml(part.answer, lang)]
                 };
-                if (part.metadata.ai_template_id) {
-                    result.ai = { ai_template_id: part.metadata.ai_template_id };
+                const aiTemplateId = part.metadata.ai_template_id || globalMetadata.ai_template_id;
+                if (aiTemplateId) {
+                    result.ai = { "ai_template_id": aiTemplateId };
                 }
                 return result;
             }
             _transformFRQPart(part, lang) {
                 return { choices: [], answer: this.processTextForHtml(part.answer, lang) };
             }
-            _transformFRQ_AIPart(part, lang) {
-                return {
-                    choices: [], answer: this.processTextForHtml(part.answer, lang),
-                    ai: { ai_template_id: part.metadata.ai_template_id || null }
+            _transformFRQ_AIPart(part, globalMetadata, lang) {
+                const result = {
+                    choices: [],
+                    answer: this.processTextForHtml(part.answer, lang)
                 };
+                const aiTemplateId = part.metadata.ai_template_id || globalMetadata.ai_template_id;
+                if (aiTemplateId) {
+                    result.ai = { "ai_template_id": aiTemplateId };
+                }
+                return result;
             }
             _transformInputBoxPart(part) {
                 const answer = { value: part.answer.value, constrains: { type: "integer" } };
@@ -1176,6 +1254,8 @@ ${rawText}
                 document.getElementById('questionInput').value = '';
                 this.questions = []; this.jsonForExport = ''; this.csvData = [];
                 localStorage.removeItem('aiq_csv_data');
+                localStorage.removeItem('aiq_mapped_ids');
+                localStorage.removeItem('aiq_ai_template_ids');
                 this.updateUIAfterChange();
                 const jsonOutput = document.getElementById('jsonOutput');
                 jsonOutput.style.display = 'none'; jsonOutput.innerHTML = '';
@@ -1191,7 +1271,9 @@ ${rawText}
                 if (!text) return '';
                 const direction = language === this.Language.ARABIC ? ' dir="rtl"' : '';
                 
-                const parts = text.split(/(``[\s\S]*?``|`[\s\S]*?`|<span data-node-type="blank-line" data-node-variation="gap"> <\/span>|<span data-node-type="blank-line" data-node-variation="space">&nbsp;<\/span>)/);
+                let processedText = text.replace(/_{5,}/g, '<span data-node-type="blank-line" data-node-variation="space">&nbsp;</span>');
+
+                const parts = processedText.split(/(``[\s\S]*?``|`[\s\S]*?`|<span data-node-type="blank-line" data-node-variation="gap"> <\/span>|<span data-node-type="blank-line" data-node-variation="space">&nbsp;<\/span>)/);
                 let finalHtmlContent = "";
                 
                 for (const part of parts) {
@@ -1617,6 +1699,119 @@ ${rawText}
                     this.showMessage(this.language === this.Language.ARABIC ? 'تم حفظ بيانات CSV' : 'CSV data saved successfully', 'success');
                     this.closeCSVModal();
                     this.displayResults();
+                }
+            }
+            openMappedIdModal() {
+                if (typeof Handsontable === 'undefined') { this.showMessage('Error: Table library not loaded.', 'error'); return; }
+                if (this.questions.length === 0) { this.showMessage(this.language === this.Language.ARABIC ? 'الرجاء تحليل الأسئلة أولاً.' : 'Please analyze questions first.', 'warning'); return; }
+                
+                const columns = [
+                    { data: 'Question Id', type: 'text', readOnly: true },
+                    { data: 'Mapped ID', type: 'text' }
+                ];
+                
+                const data = this.questions.map(q => ({
+                    'Question Id': q.metadata.id,
+                    'Mapped ID': q.metadata.mapped_id || ''
+                }));
+
+                document.getElementById('mappedIdModalBg').style.display = 'flex';
+                if (this.mappedIdHotInstance) this.mappedIdHotInstance.destroy();
+                
+                this.mappedIdHotInstance = new Handsontable(document.getElementById('hotMappedIdTable'), {
+                    data: data,
+                    colHeaders: ['Question ID', 'Mapped ID'],
+                    columns: columns,
+                    rowHeaders: true,
+                    width: '100%',
+                    height: 500,
+                    licenseKey: 'non-commercial-and-evaluation',
+                    manualColumnResize: true,
+                    stretchH: 'all'
+                });
+            }
+            closeMappedIdModal() {
+                document.getElementById('mappedIdModalBg').style.display = 'none';
+                if (this.mappedIdHotInstance) {
+                    this.mappedIdHotInstance.destroy();
+                    this.mappedIdHotInstance = null;
+                }
+            }
+            saveMappedIdData() {
+                if (this.mappedIdHotInstance) {
+                    const tableData = this.mappedIdHotInstance.getData();
+                    tableData.forEach((row, index) => {
+                        const originalId = row[0];
+                        const mappedId = row[1];
+                        const question = this.questions.find(q => q.metadata.id === originalId);
+                        if (question) {
+                            question.metadata.mapped_id = mappedId || null;
+                        }
+                    });
+                    this.showMessage(this.language === this.Language.ARABIC ? 'تم حفظ معرفات الربط بنجاح' : 'Mapped IDs saved successfully', 'success');
+                    this.closeMappedIdModal();
+                    if (document.getElementById('jsonOutput').style.display === 'block') {
+                        this.convertToJSON();
+                    }
+                }
+            }
+            openAiTemplateModal() {
+                if (typeof Handsontable === 'undefined') { this.showMessage('Error: Table library not loaded.', 'error'); return; }
+                if (this.questions.length === 0) { this.showMessage(this.language === this.Language.ARABIC ? 'الرجاء تحليل الأسئلة أولاً.' : 'Please analyze questions first.', 'warning'); return; }
+                
+                const columns = [
+                    { data: 'Question Id', type: 'text', readOnly: true },
+                    { data: 'AI Template ID', type: 'text' }
+                ];
+                
+                const data = this.questions.map(q => ({
+                    'Question Id': q.metadata.id,
+                    'AI Template ID': q.metadata.ai_template_id || ''
+                }));
+
+                document.getElementById('aiTemplateModalBg').style.display = 'flex';
+                if (this.aiTemplateHotInstance) this.aiTemplateHotInstance.destroy();
+                
+                this.aiTemplateHotInstance = new Handsontable(document.getElementById('hotAiTemplateTable'), {
+                    data: data,
+                    colHeaders: ['Question ID', 'AI Template ID'],
+                    columns: columns,
+                    rowHeaders: true,
+                    width: '100%',
+                    height: 500,
+                    licenseKey: 'non-commercial-and-evaluation',
+                    manualColumnResize: true,
+                    stretchH: 'all'
+                });
+            }
+            closeAiTemplateModal() {
+                document.getElementById('aiTemplateModalBg').style.display = 'none';
+                if (this.aiTemplateHotInstance) {
+                    this.aiTemplateHotInstance.destroy();
+                    this.aiTemplateHotInstance = null;
+                }
+            }
+            saveAiTemplateData() {
+                if (this.aiTemplateHotInstance) {
+                    const tableData = this.aiTemplateHotInstance.getData();
+                    tableData.forEach((row) => {
+                        const originalId = row[0];
+                        const aiTemplateId = row[1];
+                        const question = this.questions.find(q => q.metadata.id === originalId);
+                        if (question) {
+                            // Apply to the main question metadata
+                            question.metadata.ai_template_id = aiTemplateId || null;
+                            // Also apply to parts if they exist
+                            question.parts.forEach(p => {
+                                p.metadata.ai_template_id = aiTemplateId || null;
+                            });
+                        }
+                    });
+                    this.showMessage(this.language === this.Language.ARABIC ? 'تم حفظ معرفات قوالب AI بنجاح' : 'AI Template IDs saved successfully', 'success');
+                    this.closeAiTemplateModal();
+                    if (document.getElementById('jsonOutput').style.display === 'block') {
+                        this.convertToJSON();
+                    }
                 }
             }
             _formatCsvCell(value) {
