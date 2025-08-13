@@ -1249,10 +1249,11 @@ ${rawText}
 
                 const finalMetadata = {
                     id: finalId,
+                    ...(!isNaN(finalId) && { mapped_id: finalId }),
                     category: this.customization.category,
                     language: this.customization.lang,
                     country: this.customization.country,
-                    dialect: this.customization.lang === this.Language.ARABIC ? [this.customization.dialect] : ["american", "british"],
+                    dialect: this.language === this.Language.ARABIC ? ['Modern_standard'] : ["american", "british"],
                     source_id: { value: meta.source_id || this.config.defaults.sourceId, page_number: null },
                     description: (question.parts[0]?.stem || question.statement || '').substring(0, 150),
                     example_id: null,
@@ -1262,11 +1263,6 @@ ${rawText}
                     publication_date: new Date().toISOString(),
                     schema_version: "1.0.0"
                 };
-
-                // If a valid ID was found (from CSV or metadata), add it as mapped_id as well.
-                if (!isNaN(finalId)) {
-                    finalMetadata.mapped_id = finalId;
-                }
 
                 return {
                     parts: question.parts.map((p, partIndex) => this._transformPart(p, meta, partIndex)),
@@ -1893,7 +1889,7 @@ ${rawText}
                         'Lesson Id': '',
                         'Attributes': q.parts.map(p => this.questionTypeConfigs[p.type]?.jsonType || p.type).join(','),
                         'Category': q.metadata.category || this.customization.category,
-                        'Dialect': this.customization.dialect
+                        'Dialect': this.language === this.Language.ARABIC ? 'Modern_standard' : 'american, british'
                     }));
                 }
                 document.getElementById('csvModalBg').style.display = 'flex';
@@ -2008,7 +2004,7 @@ ${rawText}
                         '', 
                         firstType,
                         transformedQ.metadata.category,
-                        Array.isArray(transformedQ.metadata.dialect) ? transformedQ.metadata.dialect[0] : transformedQ.metadata.dialect
+                        Array.isArray(transformedQ.metadata.dialect) ? transformedQ.metadata.dialect.join(', ') : transformedQ.metadata.dialect
                     ];
                 });
 
