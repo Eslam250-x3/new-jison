@@ -276,7 +276,6 @@
             </div>
             <button id="translatedQuestionBtn" class="btn btn-secondary" style="width:100%; margin-top: 10px;">Translated Question</button>
             <button id="aiTemplateBtn" class="btn btn-secondary" style="width:100%; margin-top: 10px;">AI Template ID</button>
-            <button id="subjectTemplateBtn" class="btn btn-secondary" style="width:100%; margin-top: 10px;">Subject Template ID</button>
             <button id="customize-save-btn" class="btn btn-primary" style="width:100%; margin-top: 10px;">حفظ</button>
         </div>
     </div>
@@ -314,44 +313,6 @@
             <div style="display:flex; gap:10px; justify-content:center; margin-top:18px;">
                 <button id="ai-template-save-btn" class="btn btn-success">💾 حفظ</button>
                 <button id="ai-template-close-btn" class="btn btn-secondary">❌ إغلاق</button>
-            </div>
-        </div>
-    </div>
-    <!-- Subject Template ID Modal -->
-    <div id="subjectTemplateModalBg" role="dialog" aria-modal="true" aria-labelledby="subject-template-title">
-        <div id="subjectTemplateModal">
-            <button id="subject-template-modal-close-btn" style="position:absolute; top:12px; left:12px; background:none; border:none; font-size:1.5em; cursor:pointer;" aria-label="إغلاق">×</button>
-            <h2 id="subject-template-title" style="text-align:center; margin-bottom:18px; color:#4f46e5;">اختر المادة لتطبيق Template ID</h2>
-            <div style="margin-bottom: 20px;">
-                <label for="subjectSelect" style="font-weight:bold; display:block; margin-bottom:10px;">المادة / Subject:</label>
-                <select id="subjectSelect" style="width:100%; padding:12px; border-radius:8px; border:2px solid #e5e7eb; font-size:14px;">
-                    <option value="">-- اختر المادة --</option>
-                    <option value="الأحياء">الأحياء</option>
-                    <option value="الرياضيات">الرياضيات</option>
-                    <option value="العلوم">العلوم</option>
-                    <option value="العلوم المتكاملة">العلوم المتكاملة</option>
-                    <option value="الفيزياء">الفيزياء</option>
-                    <option value="الكيمياء">الكيمياء</option>
-                    <option value="اللغة العربية">اللغة العربية</option>
-                    <option value="اكتشف">اكتشف</option>
-                    <option value="Biology">Biology</option>
-                    <option value="Chemistry">Chemistry</option>
-                    <option value="Connect Plus">Connect Plus</option>
-                    <option value="Discover">Discover</option>
-                    <option value="English">English</option>
-                    <option value="Integrated Science">Integrated Science</option>
-                    <option value="Mathematics">Mathematics</option>
-                    <option value="Physics">Physics</option>
-                    <option value="Science">Science</option>
-                    <option value="Sciences">Sciences</option>
-                </select>
-            </div>
-            <div id="subjectQuestionsPreview" style="margin-bottom:20px; max-height:300px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:8px; padding:15px; background:#f8fafc;">
-                <p style="text-align:center; color:#6b7280;">ستظهر الأسئلة المؤهلة هنا بعد اختيار المادة</p>
-            </div>
-            <div style="display:flex; gap:10px; justify-content:center; margin-top:18px;">
-                <button id="subject-template-save-btn" class="btn btn-success">💾 تطبيق</button>
-                <button id="subject-template-close-btn" class="btn btn-secondary">❌ إغلاق</button>
             </div>
         </div>
     </div>
@@ -412,26 +373,6 @@
                 this.aiTemplateHotInstance = null;
                 this.language = this.config.defaults.lang;
                 this.aiAbortController = null;
-                this.subjectTemplateMap = {
-                    "الأحياء": "352108393701",
-                    "الرياضيات": "357135867402",
-                    "العلوم": "352108393701",
-                    "العلوم المتكاملة": "352108393701",
-                    "الفيزياء": "352108393701",
-                    "الكيمياء": "352108393701",
-                    "اللغة العربية": "248170436092",
-                    "اكتشف": "248170436092",
-                    "Biology": "352108393701",
-                    "Chemistry": "352108393701",
-                    "Connect Plus": "892167914601",
-                    "Discover": "352108393701",
-                    "English": "328173624946",
-                    "Integrated Science": "352108393701",
-                    "Mathematics": "357135867402",
-                    "Physics": "352108393701",
-                    "Science": "352108393701",
-                    "Sciences": "352108393701"
-                };
                 // --- 5. APP BOOTSTRAP ---
                 this.loadSettings();
                 this.loadApiKey();
@@ -477,7 +418,6 @@
                 document.getElementById('customize-save-btn').addEventListener('click', () => this.saveCustomization());
                 document.getElementById('translatedQuestionBtn').addEventListener('click', () => this.openMappedIdModal());
                 document.getElementById('aiTemplateBtn').addEventListener('click', () => this.openAiTemplateModal());
-                document.getElementById('subjectTemplateBtn').addEventListener('click', () => this.openSubjectTemplateModal());
                 
                 // Mapped ID Modal Events
                 document.getElementById('mapped-id-modal-close-btn').addEventListener('click', () => this.closeMappedIdModal());
@@ -489,12 +429,6 @@
                 document.getElementById('ai-template-save-btn').addEventListener('click', () => this.saveAiTemplateData());
                 document.getElementById('ai-template-close-btn').addEventListener('click', () => this.closeAiTemplateModal());
 
-                // Subject Template ID Modal Events
-                document.getElementById('subject-template-modal-close-btn').addEventListener('click', () => this.closeSubjectTemplateModal());
-                document.getElementById('subject-template-save-btn').addEventListener('click', () => this.saveSubjectTemplateData());
-                document.getElementById('subject-template-close-btn').addEventListener('click', () => this.closeSubjectTemplateModal());
-                document.getElementById('subjectSelect').addEventListener('change', () => this.updateSubjectQuestionsPreview());
-
                 // Modal ESC close
                 document.addEventListener('keydown', (e) => {
                     if (e.key === 'Escape') {
@@ -502,7 +436,6 @@
                         if (document.getElementById('customizeModal').style.display === 'flex') this.closeCustomizeModal();
                         if (document.getElementById('mappedIdModalBg').style.display === 'flex') this.closeMappedIdModal();
                         if (document.getElementById('aiTemplateModalBg').style.display === 'flex') this.closeAiTemplateModal();
-                        if (document.getElementById('subjectTemplateModalBg').style.display === 'flex') this.closeSubjectTemplateModal();
                     }
                 });
                 document.getElementById('questionsPreview').addEventListener('click', (event) => {
@@ -632,14 +565,6 @@ type: mcq
 * باريس
 - مدريد
 ---
-مثال صواب أم خطأ:
-type: mcq
-[STEM]
-هل باريس عاصمة فرنسا؟ صواب أم خطأ؟
-[CHOICES]
-* صواب
-- خطأ
----
 مثال MRQ (أكثر من نجمة):
 type: mrq
 [STEM]
@@ -689,7 +614,6 @@ x=3, y=2
 
 **قواعد أنواع الأسئلة (مهم):**
 -   **MCQ/MRQ:** استخدم \`*\` قبل الإجابة الصحيحة و \`-\` قبل الخاطئة. **MCQ** يجب أن يحتوي على نجمة واحدة فقط، بينما **MRQ** يمكن أن يحتوي على نجمة واحدة أو أكثر.
--   **أسئلة الصواب والخطأ:** الأسئلة التي تحتوي على "صواب أم خطأ"، "خطأ أم صواب"، "true or false"، "false or true" يجب تنسيقها كـ MCQ مع وضع "صواب" أو "True" كأول اختيار.
 -   **Matching:** يجب أن تكون الأزواج في \`[MATCHING_PAIRS]\` مفصولة بـ \`|\`.
 -   **GapText:** استخدم \`[BLANK]\` في نص السؤال لكل فجوة، وضع الإجابات بالترتيب في \`[GAPS]\`.
 -   **Input Box:** يجب أن تكون الإجابة في \`[ANSWER]\` بصيغة \`القيمة | الوحدة\` أو \`القيمة\` فقط إذا لم تكن هناك وحدة.
@@ -724,7 +648,6 @@ You are an expert question formatter and a meticulous academic assistant. Your t
 
 **Question Type Rules (Important):**
 -   **MCQ/MRQ:** Use \`*\` before a correct answer and \`-\` before an incorrect one. **MCQ** must have exactly one star, while **MRQ** can have one or more.
--   **True/False Questions:** Questions containing "true or false", "false or true", "صواب أم خطأ", "خطأ أم صواب" should be formatted as MCQ with "True" or "صواب" as the first choice.
 -   **Matching:** Pairs under \`[MATCHING_PAIRS]\` must be separated by \`|\`.
 -   **GapText:** Use \`[BLANK]\` in the stem for each gap, and place the ordered answers under \`[GAPS]\`.
 -   **Input Box:** The answer under \`[ANSWER]\` should be in the format \`value | unit\` or just \`value\` if there is no unit.
@@ -772,11 +695,6 @@ ${rawText}
                 const hasGaps = /\[GAPS/i.test(block) || /\[BLANK\]/i.test(block);
                 const hasMatching = /\[MATCHING_PAIRS\]/i.test(block) || /^\s*.+\s*\|\s*.+$/m.test(block);
                 const starCount = (block.match(/^\s*\*/gm) || []).length;
-                
-                // Check for True/False questions
-                const isTrueFalse = this.isTrueFalseQuestion(block);
-                if (isTrueFalse) return this.QuestionType.MCQ;
-                
                 if (hasMatching) return this.QuestionType.MATCHING;
                 if (hasGaps) return this.QuestionType.GAP_TEXT;
                 if (hasChoices && starCount > 1) return this.QuestionType.MRQ;
@@ -788,31 +706,6 @@ ${rawText}
                     return ans.split(/\s+/).length > 12 ? this.QuestionType.FRQ : this.QuestionType.STRING;
                 }
                 return this.QuestionType.STRING;
-            }
-            
-            isTrueFalseQuestion(block) {
-                const stem = (block.match(/\[STEM\]([\s\S]*?)(?=\[|$)/i) || [, ''])[1].trim();
-                const trueFalsePatterns = [
-                    /^.*صواب\s+أم\s+خطأ.*$/i,
-                    /^.*خطأ\s+أم\s+صواب.*$/i,
-                    /^.*true\s+or\s+false.*$/i,
-                    /^.*false\s+or\s+true.*$/i,
-                    /^.*صحيح\s+أم\s+خطأ.*$/i,
-                    /^.*خطأ\s+أم\s+صحيح.*$/i
-                ];
-                return trueFalsePatterns.some(pattern => pattern.test(stem));
-            }
-            
-            organizeTrueFalseChoices(choices, originalAnswers) {
-                const trueChoices = choices.filter(choice => 
-                    /^(صواب|true|صحيح)$/i.test(choice.trim())
-                );
-                const falseChoices = choices.filter(choice => 
-                    /^(خطأ|false|غلط)$/i.test(choice.trim())
-                );
-                
-                // Always put True/صواب first, then False/خطأ
-                return [...trueChoices, ...falseChoices];
             }
 
             normalizeOneBlock(block) {
@@ -1024,33 +917,8 @@ ${rawText}
                             part.choices.push(line);
                             if (isCorrect) answers.push(idx);
                         });
-                        
-                        // Handle True/False questions - ensure True/صواب comes first
-                        if (this.isTrueFalseQuestion({ stem: part.stem })) {
-                            part.choices = this.organizeTrueFalseChoices(part.choices, answers);
-                            // Recalculate answer index after reorganization
-                            if (part.type !== this.QuestionType.OQ) {
-                                const trueIndex = part.choices.findIndex(choice => 
-                                    /^(صواب|true)$/i.test(choice.trim())
-                                );
-                                const falseIndex = part.choices.findIndex(choice => 
-                                    /^(خطأ|false)$/i.test(choice.trim())
-                                );
-                                
-                                if (trueIndex !== -1 && falseIndex !== -1) {
-                                    // Find which was originally correct
-                                    const originalTrueAnswer = answers.find(idx => 
-                                        /^(صواب|true)$/i.test(lines[idx]?.replace(/^[*-]\s*/, '').trim())
-                                    );
-                                    part.answer = part.type === this.QuestionType.MCQ ? 
-                                        (originalTrueAnswer !== undefined ? trueIndex : falseIndex) : 
-                                        [originalTrueAnswer !== undefined ? trueIndex : falseIndex];
-                                }
-                            }
-                        } else {
-                            if (part.type !== this.QuestionType.OQ) {
-                                part.answer = part.type === this.QuestionType.MCQ ? answers[0] : answers;
-                            }
+                        if (part.type !== this.QuestionType.OQ) {
+                            part.answer = part.type === this.QuestionType.MCQ ? answers[0] : answers;
                         }
                         break;
                     }
@@ -1115,33 +983,8 @@ ${rawText}
                             part.choices.push(choiceText);
                             if (isCorrect) answers.push(idx);
                         });
-                        
-                        // Handle True/False questions - ensure True/صواب comes first
-                        if (this.isTrueFalseQuestion({ stem: part.stem })) {
-                            part.choices = this.organizeTrueFalseChoices(part.choices, answers);
-                            // Recalculate answer index after reorganization
-                            const trueIndex = part.choices.findIndex(choice => 
-                                /^(صواب|true|صحيح)$/i.test(choice.trim())
-                            );
-                            const falseIndex = part.choices.findIndex(choice => 
-                                /^(خطأ|false|غلط)$/i.test(choice.trim())
-                            );
-                            
-                            if (trueIndex !== -1 && falseIndex !== -1) {
-                                // Find which was originally correct
-                                const originalTrueAnswer = answers.find(idx => 
-                                    /^(صواب|true|صحيح)$/i.test(remainingLines[idx]?.replace(/^[*-]\s*/, '').trim())
-                                );
-                                if (type === this.QuestionType.MCQ) {
-                                    part.answer = originalTrueAnswer !== undefined ? trueIndex : falseIndex;
-                                } else if (type === this.QuestionType.MRQ) {
-                                    part.answer = [originalTrueAnswer !== undefined ? trueIndex : falseIndex];
-                                }
-                            }
-                        } else {
-                            if (type === this.QuestionType.MCQ) part.answer = answers[0];
-                            else if (type === this.QuestionType.MRQ) part.answer = answers;
-                        }
+                        if (type === this.QuestionType.MCQ) part.answer = answers[0];
+                        else if (type === this.QuestionType.MRQ) part.answer = answers;
                         break;
                     }
                     case this.QuestionType.STRING:
@@ -1823,7 +1666,6 @@ ${rawText}
                     downloadBtn: { ar: '💾 تحميل', en: '💾 Download' },
                     downloadZipBtn: { ar: '🗜️ تحميل كـ ZIP', en: '🗜️ Download as ZIP' },
                     csvBtn: { ar: '📄 CSV', en: '📄 CSV' },
-                    subjectTemplateBtn: { ar: '📚 Subject Template ID', en: '📚 Subject Template ID' },
                 };
                 
                 document.getElementById('main-title').innerHTML = translations.mainTitle[this.language];
@@ -1842,7 +1684,6 @@ ${rawText}
                 document.getElementById('downloadBtn').innerHTML = translations.downloadBtn[this.language];
                 document.getElementById('downloadZipBtn').innerHTML = translations.downloadZipBtn[this.language];
                 document.getElementById('csvBtn').innerHTML = translations.csvBtn[this.language];
-                document.getElementById('subjectTemplateBtn').innerHTML = translations.subjectTemplateBtn[this.language];
                 this.displayResults();
             }
             openCustomizeModal() {
@@ -2090,120 +1931,6 @@ ${rawText}
                 });
                 return header.join(',') + '\n' + rows.join('\n');
             }
-            
-            // Subject Template ID Functions
-            openSubjectTemplateModal() {
-                if (this.questions.length === 0) {
-                    this.showMessage(this.language === this.Language.ARABIC ? 'الرجاء تحليل الأسئلة أولاً.' : 'Please analyze questions first.', 'warning');
-                    return;
-                }
-                
-                document.getElementById('subjectTemplateModalBg').style.display = 'flex';
-                document.getElementById('subjectSelect').value = '';
-                this.updateSubjectQuestionsPreview();
-            }
-            
-            closeSubjectTemplateModal() {
-                document.getElementById('subjectTemplateModalBg').style.display = 'none';
-            }
-            
-            updateSubjectQuestionsPreview() {
-                const selectedSubject = document.getElementById('subjectSelect').value;
-                const previewContainer = document.getElementById('subjectQuestionsPreview');
-                
-                if (!selectedSubject) {
-                    this.setSafeHTML(previewContainer, '<p style="text-align:center; color:#6b7280;">ستظهر الأسئلة المؤهلة هنا بعد اختيار المادة</p>');
-                    return;
-                }
-                
-                const templateId = this.subjectTemplateMap[selectedSubject];
-                if (!templateId) {
-                    this.setSafeHTML(previewContainer, '<p style="text-align:center; color:#ef4444;">خطأ: لم يتم العثور على Template ID لهذه المادة</p>');
-                    return;
-                }
-                
-                const eligibleQuestions = this.questions.filter((q, index) => {
-                    return q.parts.some(part => 
-                        part.type === this.QuestionType.FRQ_AI || 
-                        part.type === this.QuestionType.STRING
-                    );
-                });
-                
-                if (eligibleQuestions.length === 0) {
-                    this.setSafeHTML(previewContainer, '<p style="text-align:center; color:#f59e0b;">لا توجد أسئلة من نوع frq_ai أو string لتطبيق Template ID عليها</p>');
-                    return;
-                }
-                
-                let html = `<div style="margin-bottom:15px; padding:10px; background:#dcfce7; border-radius:8px; border:1px solid #16a34a;">
-                    <strong>المادة المختارة:</strong> ${selectedSubject}<br>
-                    <strong>Template ID:</strong> ${templateId}<br>
-                    <strong>عدد الأسئلة المؤهلة:</strong> ${eligibleQuestions.length}
-                </div>`;
-                
-                html += '<div style="max-height:200px; overflow-y:auto;">';
-                eligibleQuestions.forEach((q, index) => {
-                    const questionId = q.metadata.id;
-                    const parts = q.parts.filter(part => 
-                        part.type === this.QuestionType.FRQ_AI || 
-                        part.type === this.QuestionType.STRING
-                    );
-                    
-                    html += `<div style="margin-bottom:10px; padding:8px; background:white; border-radius:6px; border:1px solid #e2e8f0;">
-                        <strong>السؤال ${index + 1} (ID: ${questionId})</strong><br>
-                        <small>الأجزاء المؤهلة: ${parts.map(p => p.type).join(', ')}</small>
-                    </div>`;
-                });
-                html += '</div>';
-                
-                this.setSafeHTML(previewContainer, html);
-            }
-            
-            saveSubjectTemplateData() {
-                const selectedSubject = document.getElementById('subjectSelect').value;
-                
-                if (!selectedSubject) {
-                    this.showMessage(this.language === this.Language.ARABIC ? 'الرجاء اختيار مادة أولاً' : 'Please select a subject first', 'warning');
-                    return;
-                }
-                
-                const templateId = this.subjectTemplateMap[selectedSubject];
-                if (!templateId) {
-                    this.showMessage(this.language === this.Language.ARABIC ? 'خطأ: لم يتم العثور على Template ID لهذه المادة' : 'Error: Template ID not found for this subject', 'error');
-                    return;
-                }
-                
-                let appliedCount = 0;
-                
-                this.questions.forEach(q => {
-                    q.parts.forEach(part => {
-                        if (part.type === this.QuestionType.FRQ_AI || part.type === this.QuestionType.STRING) {
-                            part.metadata.ai_template_id = templateId;
-                            appliedCount++;
-                        }
-                    });
-                    
-                    // Also apply to main question metadata if it has frq_ai or string parts
-                    if (q.parts.some(part => part.type === this.QuestionType.FRQ_AI || part.type === this.QuestionType.STRING)) {
-                        q.metadata.ai_template_id = templateId;
-                    }
-                });
-                
-                this.showMessage(
-                    this.language === this.Language.ARABIC 
-                        ? `تم تطبيق Template ID (${templateId}) على ${appliedCount} جزء من الأسئلة` 
-                        : `Applied Template ID (${templateId}) to ${appliedCount} question parts`, 
-                    'success'
-                );
-                
-                this.closeSubjectTemplateModal();
-                
-                if (document.getElementById('jsonOutput').style.display === 'block') {
-                    this.convertToJSON();
-                }
-                
-                this.displayResults();
-            }
-            
             syntaxHighlight(json) {
                 json = json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
                 return json.replace(
