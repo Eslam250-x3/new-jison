@@ -1887,7 +1887,7 @@ ${rawText}
                         'Question Id': q.metadata.id,
                         'Lang': q.metadata.language || this.customization.lang,
                         'Lesson Id': '',
-                        'Attributes': q.parts.map(p => this.questionTypeConfigs[p.type]?.jsonType || p.type).join(','),
+                        'Attributes': q.parts.map(p => this.questionTypeConfigs[p.type]?.jsonType || p.type).join(';'),
                         'Category': q.metadata.category || this.customization.category,
                         'Dialect': this.language === this.Language.ARABIC ? 'Modern_standard' : 'american, british'
                     }));
